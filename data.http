@@ -1,42 +1,40 @@
 ### Variables
-@baseUrl =   https://myapp.amroaltayeb14.workers.dev 
+# @baseUrl =   https://myapp.amroaltayeb14.workers.dev 
 # For local testing, uncomment the line below:
-# @baseUrl = http://localhost:8787
+@baseUrl = http://localhost:8787
+
+### Get all users
+GET {{baseUrl}}/users
+### get user By Id
+GET {{baseUrl}}/user/1
+### Create a user
+POST {{baseUrl}}/user
+Content-Type: application/json
+
+{
+  "userName": "mohamed",
+  "email": "mohamed@gmail.com",
+  "password": "123456"
+}
 
 ### Get all posts
 GET {{baseUrl}}/posts
 
-### Create a new post
+### Create a new post (make sure to create a user first and use their ID)
 POST {{baseUrl}}/post
 Content-Type: application/json
 
 {
+  "userId": 1,
   "title": "My First Post",
   "content": "This is the content of my first post!"
 }
 
-### Create another post
-POST {{baseUrl}}/post
-Content-Type: application/json
-
-{
-  "title": "Testing D1 Database",
-  "content": "This post is created to test the D1 database with Hono API"
-}
-
-### Create a third post
-POST {{baseUrl}}/post
-Content-Type: application/json
-
-{
-  "title": "Hello World",
-  "content": "Testing the API deployment on Cloudflare Workers"
-}
 ### Get post by id
-GET {{baseUrl}}/post/2
+GET {{baseUrl}}/post/1
 
 ### Update post
-PUT {{baseUrl}}/post/2
+PUT {{baseUrl}}/post/1
 Content-Type: application/json
 
 {
@@ -44,14 +42,14 @@ Content-Type: application/json
   "content": "This is the updated content of the post!"
 }
 
+### Get all comments
+GET {{baseUrl}}/comments
 
-### create comment
+### Create comment (make sure to create a post first and use its ID)
 POST {{baseUrl}}/comment
 Content-Type: application/json
 
 {
-  "postId": 2,
+  "postId": 1,
   "content": "This is comment from mohamed!"
 }
-### Get all comments
-GET {{baseUrl}}/comments

@@ -2,6 +2,17 @@ import { relations, sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 
+export const users = sqliteTable("users", {
+    id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+    userName: text("userName", { length: 256 }).notNull(),
+    email: text("email", { length: 256 }).notNull().unique(),
+    password: text("password", { length: 256 }).notNull(),
+    createdAt: text("createdAt").notNull().default(sql`CURRENT_TIMESTAMP`),
+})
+
+export const userRelation = relations(users, ({ many }) => ({
+    posts: many(posts),
+}))
 
 export const posts = sqliteTable("posts", {
     id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
