@@ -1,7 +1,7 @@
 ### Variables
-@baseUrl =   https://myapp.amroaltayeb14.workers.dev
+# @baseUrl =   https://myapp.amroaltayeb14.workers.dev 
 # For local testing, uncomment the line below:
-# @baseUrl = http://localhost:8787
+@baseUrl = http://localhost:8787
 
 ### Get all posts
 GET {{baseUrl}}/posts
@@ -32,3 +32,26 @@ Content-Type: application/json
   "title": "Hello World",
   "content": "Testing the API deployment on Cloudflare Workers"
 }
+### Get post by id
+GET {{baseUrl}}/post/2
+
+### Update post
+PUT {{baseUrl}}/post/2
+Content-Type: application/json
+
+{
+  "title": "Updated Post",
+  "content": "This is the updated content of the post!"
+}
+
+
+### create comment
+POST {{baseUrl}}/comment
+Content-Type: application/json
+
+{
+  "postId": 2,
+  "content": "This is comment from mohamed!"
+}
+### Get all comments
+GET {{baseUrl}}/comments

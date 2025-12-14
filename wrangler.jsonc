@@ -9,7 +9,7 @@
 			"database_name": "myAppD1",
 			"database_id": "38cba086-fad7-49fa-a486-8b5eb41fa048",
 			"migrations_dir": "drizzle/migrations",
-			"remote": true
+			"remote": false
 		}
 	],
 	// "compatibility_flags": [
