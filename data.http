@@ -8,12 +8,12 @@ GET {{baseUrl}}/users
 ### get user By Id
 GET {{baseUrl}}/user/1
 ### Create a user
-POST {{baseUrl}}/user
+POST {{baseUrl}}/signup
 Content-Type: application/json
 
 {
-  "userName": "mohamed",
-  "email": "mohamed@gmail.com",
+  "userName": "ali",
+  "email": "ali@gmail.com",
   "password": "123456"
 }
 

@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono'
 import * as schema from './db/schema';
+import bcrypt from 'bcryptjs';
 const { posts, comments } = schema;
 
 export type Env = {
@@ -70,10 +71,15 @@ app.get("/users", async (c) => {
   return c.json(result)
 })
 // create user
-app.post("/user", async (c) => {
+app.post("/signup", async (c) => {
   const db = drizzle(c.env.myAppD1, { schema })
   const { userName, email, password } = await c.req.json()
-  const result = await db.insert(schema.users).values({ userName, email, password }).returning()
+  const salt = 10
+  const hash = await bcrypt.hash(password, salt)
+ if (await db.query.users.findFirst({ where: eq(schema.users.email, email) })) {
+    return c.json({ message: "User already exists" }, 400)
+  }
+  const result = await db.insert(schema.users).values({ userName, email, password: hash }).returning()
   return c.json(result)
 })
 // get user by id
