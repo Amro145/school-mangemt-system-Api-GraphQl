@@ -3,7 +3,7 @@
 # For local testing, uncomment the line below:
 @studentToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6Miwicm9sZSI6InN0dWRlbnQiLCJ1c2VyTmFtZSI6ImFsaSIsImlhdCI6MTc2NTg0MTIyMSwiZXhwIjoxNzY2NDQ2MDIxfQ.rUf-L_DRA_H1g5cxzbUN7Irw5zdOtJmYO9_fo7uTXhQ
 @baseUrl = http://localhost:8787
-@adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwidXNlck5hbWUiOiJhbXJvIiwiaWF0IjoxNzY1ODQxMTgwLCJleHAiOjE3NjY0NDU5ODB9.b8sIvgE9N9a1GV-FDJEJdLkT7GKGpiZ0a3FBQNc_kpk
+@adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwidXNlck5hbWUiOiJhbXJvIiwiaWF0IjoxNzY1ODQxODY2LCJleHAiOjE3NjY0NDY2NjZ9.EQa9mKVL8G1HIOj5gLTH_oYFaO4ablpT2n1VeXaYLgs
 
 ### get all users (to check what users exist)
 GET {{baseUrl}}/users
@@ -13,17 +13,17 @@ POST {{baseUrl}}/users/signup
 Content-Type: application/json
 
 {
-  "userName": "ali",
-  "email": "ali@gmail.com",
+  "userName": "mohamed",
+  "email": "mohamed@gmail.com",
   "password": "123456",
-  "role": "student"
+  "role": "teacher"
 }
 ### login
 POST {{baseUrl}}/users/login
 Content-Type: application/json
 
 {
-  "email": "ali@gmail.com",
+  "email": "amro@gmail.com",
   "password": "123456"
 }
 ### get student
@@ -87,3 +87,29 @@ Authorization: Bearer {{adminToken}}
 ### delete subject
 DELETE {{baseUrl}}/subjects/2
 Authorization: Bearer {{adminToken}}
+
+###################CONNECTION###################
+### connect between class and subject
+POST {{baseUrl}}/connections/connect
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "classRoomId": 1,
+  "subjectId": 1,
+  "teacherId": 3
+}
+### disconnect between class and subject
+DELETE {{baseUrl}}/connections/disconnect
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "classRoomId": 1,
+  "subjectId": 1,
+  "teacherId": 1
+}
+### get all connections data with school name
+GET {{baseUrl}}/connections/all
+Authorization: Bearer {{adminToken}}
+
