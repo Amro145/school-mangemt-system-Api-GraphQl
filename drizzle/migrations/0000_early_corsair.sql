@@ -1,7 +1,9 @@
 CREATE TABLE `classRoom` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`name` text(256) NOT NULL,
-	`createdAt` text DEFAULT CURRENT_TIMESTAMP NOT NULL
+	`schoolId` integer NOT NULL,
+	`createdAt` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	FOREIGN KEY (`schoolId`) REFERENCES `school`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `classSubjects` (

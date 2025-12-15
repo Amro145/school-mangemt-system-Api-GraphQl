@@ -22,6 +22,7 @@ export const school = sqliteTable("school", {
 export const classRoom = sqliteTable("classRoom", {
     id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
     name: text("name", { length: 256 }).notNull(),
+    schoolId: integer("schoolId", { mode: "number" }).notNull().references(() => school.id, { onDelete: "cascade" }),
     createdAt: text("createdAt").notNull().default(sql`CURRENT_TIMESTAMP`),
 })
 export const subject = sqliteTable("subject", {
@@ -29,20 +30,15 @@ export const subject = sqliteTable("subject", {
     name: text("name", { length: 256 }).notNull(),
     createdAt: text("createdAt").notNull().default(sql`CURRENT_TIMESTAMP`),
 })
-export const schoolClasses = sqliteTable("schoolClasses", {
-    schoolId: integer("schoolId", { mode: "number" }).notNull().references(() => school.id, { onDelete: 'cascade' }),
-    classRoomId: integer("classRoomId", { mode: "number" }).notNull().references(() => classRoom.id, { onDelete: 'cascade' }),
-}, (t) => ({
-    pk: primaryKey({ columns: [t.schoolId, t.classRoomId] }),
-}));
-export const classSubjects = sqliteTable("classSubjects", {
-    classRoomId: integer("classRoomId", { mode: "number" }).notNull().references(() => classRoom.id, { onDelete: "cascade" }),
-    subjectId: integer("subjectId", { mode: "number" }).notNull().references(() => subject.id, { onDelete: "cascade" }),
-    teacherId: integer("teacherId", { mode: "number" }).notNull().references(() => user.id, { onDelete: "restrict" }),
-}, (t) => ({
-    pk: primaryKey({ columns: [t.classRoomId, t.subjectId] }),
-    unq: uniqueIndex("class_subject_teacher_unq").on(t.classRoomId, t.subjectId, t.teacherId),
-}));
+
+// export const classSubjects = sqliteTable("classSubjects", {
+//     classRoomId: integer("classRoomId", { mode: "number" }).notNull().references(() => classRoom.id, { onDelete: "cascade" }),
+//     subjectId: integer("subjectId", { mode: "number" }).notNull().references(() => subject.id, { onDelete: "cascade" }),
+//     teacherId: integer("teacherId", { mode: "number" }).notNull().references(() => user.id, { onDelete: "restrict" }),
+// }, (t) => ({
+//     pk: primaryKey({ columns: [t.classRoomId, t.subjectId] }),
+//     unq: uniqueIndex("class_subject_teacher_unq").on(t.classRoomId, t.subjectId, t.teacherId),
+// }));
 
 export const teacherSubjects = sqliteTable("teacherSubjects", {
     teacherId: integer("teacherId", { mode: "number" }).notNull().references(() => user.id, { onDelete: "cascade" }),
@@ -71,19 +67,19 @@ export const schoolRelations = relations(school, ({ many, one }) => ({
         fields: [school.adminId],
         references: [user.id],
     }),
-    classes: many(schoolClasses),
+    classes: many(classRoom),
 }));
 export const classRoomRelations = relations(classRoom, ({ many, one }) => ({
-    school: one(schoolClasses, {
-        fields: [classRoom.id],
-        references: [schoolClasses.classRoomId],
+    school: one(school, {
+        fields: [classRoom.schoolId],
+        references: [school.id],
     }),
-    subjects: many(classSubjects),
+    subjects: many(subject),
     enrollments: many(enrollments),
 }));
 export const subjectRelations = relations(subject, ({ many }) => ({
     teachers: many(teacherSubjects),
-    classes: many(classSubjects),
+    classes: many(classRoom),
 }));
 export const teacherSubjectsRelations = relations(teacherSubjects, ({ one }) => ({
     teacher: one(user, { fields: [teacherSubjects.teacherId], references: [user.id] }),
