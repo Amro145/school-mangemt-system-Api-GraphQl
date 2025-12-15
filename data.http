@@ -1,18 +1,22 @@
 ### Variables
 # @baseUrl =   https://myapp.amroaltayeb14.workers.dev 
 # For local testing, uncomment the line below:
-@token = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MTIsInJvbGUiOiJhZG1pbiIsInVzZXJOYW1lIjoiYW1ybyIsImlhdCI6MTc2NTc2MjYwNCwiZXhwIjoxNzY2MzY3NDA0fQ.__ScGEP3P__IZThMOhK3C9CJL3aCRJfLmnZVbpBF6MY
+@studentToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6Miwicm9sZSI6InN0dWRlbnQiLCJ1c2VyTmFtZSI6ImFsaSIsImlhdCI6MTc2NTgzMTA0NywiZXhwIjoxNzY2NDM1ODQ3fQ.p9MQ_nYqEyQo0dLgXkP6esqdS4HbD4Dnp2_Uq1-TRUQ
 @baseUrl = http://localhost:8787
+@adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwidXNlck5hbWUiOiJhbXJvIiwiaWF0IjoxNzY1ODMxMjgyLCJleHAiOjE3NjY0MzYwODJ9.qm3rPB_5fmskB_I6M2P_3Kw2mazinH0SvKb_7q9PuBg
+
+### get all users (to check what users exist)
+GET {{baseUrl}}/users
 
 ### signup
 POST {{baseUrl}}/users/signup
 Content-Type: application/json
 
 {
-  "userName": "amro",
-  "email": "amro@gmail.com",
+  "userName": "ali",
+  "email": "ali@gmail.com",
   "password": "123456",
-  "role": "admin"
+  "role": "student"
 }
 ### login
 POST {{baseUrl}}/users/login
@@ -24,24 +28,28 @@ Content-Type: application/json
 }
 ### get student
 GET {{baseUrl}}/users/students
-### get admins
+### get admins with their schools
 GET {{baseUrl}}/users/admin
 ### get teachers
 GET {{baseUrl}}/users/teachers
 ### delete user
 DELETE {{baseUrl}}/users/12
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 
 ###################SCHOOL###################
 ### create school
 POST {{baseUrl}}/schools
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
-  "name": "almoh"
+  "name": "altwafeq",
+  "adminId": 1
 }
 ### get schools
 GET {{baseUrl}}/schools
 
+### delete school
+DELETE {{baseUrl}}/schools/2
+Authorization: Bearer {{adminToken}}

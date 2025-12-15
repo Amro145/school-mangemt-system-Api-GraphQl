@@ -103,17 +103,27 @@ userRoutes.get("/teachers", async (c) => {
     return c.json(users, 200)
 })
 
-// get admin
+// get admin with their schools
 userRoutes.get("/admin", async (c) => {
     const db = drizzle(c.env.myAppD1, { schema })
-    const users = await db.select({
-        id: schema.user.id,
-        userName: schema.user.userName,
-        email: schema.user.email,
-        role: schema.user.role,
-        createdAt: schema.user.createdAt,
-    }).from(schema.user).where(eq(schema.user.role, "admin"))
-    return c.json(users, 200)
+
+    // Use relational query to get admins with their schools
+    const admins = await db.query.user.findMany({
+        where: eq(schema.user.role, "admin"),
+        columns: {
+            id: true,
+            userName: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            password: false, // Exclude password from response
+        },
+        with: {
+            schools: true, // Include related schools
+        },
+    });
+
+    return c.json(admins, 200)
 })
 
 userRoutes.delete("/:id", authenticate, adminOnly, async (c) => {
@@ -125,6 +135,7 @@ userRoutes.delete("/:id", authenticate, adminOnly, async (c) => {
         return c.json({ error: "Invalid user ID" }, 400)
     }
     const user = await db.select().from(schema.user).where(eq(schema.user.id, id))
+
     if (!user) {
         return c.json({ error: "User not found" }, 404)
     }

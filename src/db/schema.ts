@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { integer, sqliteTable, primaryKey, uniqueIndex,text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, primaryKey, uniqueIndex, text } from "drizzle-orm/sqlite-core";
 
 
 export const userRoles = ["student", "teacher", "admin"] as const;
@@ -16,6 +16,7 @@ export const user = sqliteTable("user", {
 export const school = sqliteTable("school", {
     id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
     name: text("name", { length: 256 }).notNull(),
+    adminId: integer("adminId", { mode: "number" }).notNull().references(() => user.id, { onDelete: "cascade" }),
     createdAt: text("createdAt").notNull().default(sql`CURRENT_TIMESTAMP`),
 })
 export const classRoom = sqliteTable("classRoom", {
@@ -40,7 +41,7 @@ export const classSubjects = sqliteTable("classSubjects", {
     teacherId: integer("teacherId", { mode: "number" }).notNull().references(() => user.id, { onDelete: "restrict" }),
 }, (t) => ({
     pk: primaryKey({ columns: [t.classRoomId, t.subjectId] }),
-    unq: uniqueIndex("class_subject_teacher_unq").on(t.classRoomId, t.subjectId, t.teacherId), 
+    unq: uniqueIndex("class_subject_teacher_unq").on(t.classRoomId, t.subjectId, t.teacherId),
 }));
 
 export const teacherSubjects = sqliteTable("teacherSubjects", {
@@ -62,9 +63,14 @@ export const userRelations = relations(user, ({ many }) => ({
     taughtSubjects: many(teacherSubjects),
     // الطالب مسجل في فصول
     enrollments: many(enrollments),
+    // المسؤول عن المدارس (admin owns schools)
+    schools: many(school),
 }));
-export const schoolRelations = relations(school, ({ many }) => ({
-    // المدرسة تحتوي على فصول
+export const schoolRelations = relations(school, ({ many, one }) => ({
+    admin: one(user, {
+        fields: [school.adminId],
+        references: [user.id],
+    }),
     classes: many(schoolClasses),
 }));
 export const classRoomRelations = relations(classRoom, ({ many, one }) => ({

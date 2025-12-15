@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "094071aa-2d54-4c55-a4f8-71291eefac17",
+  "id": "e28a0e6c-bd1a-4cdd-9029-7e7a967816af",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "classRoom": {
@@ -209,6 +209,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "adminId": {
+          "name": "adminId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "createdAt": {
           "name": "createdAt",
           "type": "text",
@@ -219,7 +226,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "school_adminId_user_id_fk": {
+          "name": "school_adminId_user_id_fk",
+          "tableFrom": "school",
+          "tableTo": "user",
+          "columnsFrom": [
+            "adminId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

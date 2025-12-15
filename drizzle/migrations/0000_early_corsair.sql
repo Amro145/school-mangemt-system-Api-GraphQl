@@ -27,7 +27,9 @@ CREATE TABLE `enrollments` (
 CREATE TABLE `school` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`name` text(256) NOT NULL,
-	`createdAt` text DEFAULT CURRENT_TIMESTAMP NOT NULL
+	`adminId` integer NOT NULL,
+	`createdAt` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	FOREIGN KEY (`adminId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `schoolClasses` (
