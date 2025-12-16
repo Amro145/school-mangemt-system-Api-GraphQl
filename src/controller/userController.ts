@@ -98,7 +98,7 @@ userRoutes.get("/students", async (c) => {
         with: {
             enrollments: {
                 columns: {
-                   
+
                 },
                 with: {
                     classRoom: {
@@ -192,6 +192,9 @@ userRoutes.get("/admin", async (c) => {
             createdAt: true,
             password: false, // Exclude password from response
         },
+        with: {
+            schools: true,
+        }
 
     });
 
