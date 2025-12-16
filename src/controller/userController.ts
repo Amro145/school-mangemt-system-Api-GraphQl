@@ -193,7 +193,11 @@ userRoutes.get("/admin", async (c) => {
             password: false, // Exclude password from response
         },
         with: {
-            schools: true,
+            schoolsManaged: {
+                with: {
+                    classes: true,
+                },
+            },
         }
 
     });

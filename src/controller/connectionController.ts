@@ -63,12 +63,12 @@ connectionRoutes.delete('/disconnect', authenticate, adminOnly, async (c) => {
 });
 // get all connections data with school name
 connectionRoutes.get('/all', authenticate, async (c) => {
-       const teacher = aliasedTable(schema.user, 'teacher');
+    const teacher = aliasedTable(schema.user, 'teacher');
     const admin = aliasedTable(schema.user, 'admin');
     const connections = await drizzle(c.env.myAppD1).select().from(schema.classSubjects)
         .innerJoin(schema.classRoom, eq(schema.classSubjects.classRoomId, schema.classRoom.id))
         .innerJoin(schema.subject, eq(schema.classSubjects.subjectId, schema.subject.id))
-        .innerJoin(schema.user, eq(schema.classSubjects.teacherId, schema.user.id))
+        .innerJoin(teacher, eq(schema.classSubjects.teacherId, teacher.id))
         .innerJoin(schema.school, eq(schema.classRoom.schoolId, schema.school.id))
         .innerJoin(admin, eq(schema.school.adminId, admin.id));
     return c.json(connections);

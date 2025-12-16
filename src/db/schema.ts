@@ -63,7 +63,7 @@ export const enrollments = sqliteTable("enrollments", {
 // --------------------------------------------------
 
 export const userRelations = relations(user, ({ many, one }) => ({
-    schools: one(school, { fields: [user.id], references: [school.adminId] }),
+    schoolsManaged: many(school),
     classesTaught: many(classSubjects), // الفصول والمواد التي يدرسها المدرس
     enrollments: many(enrollments), // تسجيلات الطالب
 }));
@@ -71,7 +71,6 @@ export const userRelations = relations(user, ({ many, one }) => ({
 export const schoolRelations = relations(school, ({ many, one }) => ({
     admin: one(user, { fields: [school.adminId], references: [user.id] }),
     classes: many(classRoom),
-    users: many(user), // جميع المستخدمين المرتبطين بالمدرسة
 }));
 
 export const classRoomRelations = relations(classRoom, ({ many, one }) => ({
