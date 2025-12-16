@@ -30,13 +30,32 @@ enrollmentsRoutes.post("/enroll", authenticate, adminOnly, async (c) => {
 enrollmentsRoutes.get("/all", authenticate, adminOnly, async (c) => {
     const teacher = aliasedTable(schema.user, 'teacher');
     const admin = aliasedTable(schema.user, 'admin');
-    const connections = await drizzle(c.env.myAppD1).select().from(schema.classSubjects)
-        .innerJoin(schema.enrollments, eq(schema.classSubjects.classRoomId, schema.enrollments.classRoomId))
-        .innerJoin(schema.classRoom, eq(schema.enrollments.classRoomId, schema.classRoom.id))
-        .innerJoin(schema.subject, eq(schema.classSubjects.subjectId, schema.subject.id))
-        .innerJoin(schema.user, eq(schema.enrollments.studentId, schema.user.id))
-        .innerJoin(schema.school, eq(schema.classRoom.schoolId, schema.school.id))
-        .innerJoin(admin, eq(schema.school.adminId, admin.id));
+    const db = drizzle(c.env.myAppD1, { schema })
+
+    const connections = await db.query.enrollments.findMany({
+        columns: {
+
+        },
+        with: {
+            classRoom: {
+                with: {
+                    studentGrades:
+                    {
+                        columns: {
+                            id: true,
+                            score: true,
+                            type: true,
+                            dateRecorded: true,
+                        },
+                        with: {
+                            student: true,
+
+                        }
+                    },
+                }
+            }
+        }
+    })
     return c.json(connections);
 });
 
