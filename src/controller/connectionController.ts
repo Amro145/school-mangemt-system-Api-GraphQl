@@ -55,7 +55,7 @@ connectionRoutes.delete('/disconnect', authenticate, adminOnly, async (c) => {
         )
         .returning();
 
-    // يتم هنا الرد بالصف الذي تم حذفه
+    // Return the deleted row
     if (connection.length === 0) {
         return c.json({ message: "No connection found" }, 404);
     }

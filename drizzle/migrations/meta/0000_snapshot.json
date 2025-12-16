@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f1b54f92-ad9a-44da-b055-54310977585c",
+  "id": "6e10eead-48bb-4ed3-9282-9ed0f6c7d547",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "classRoom": {
@@ -249,6 +249,107 @@
             "id"
           ],
           "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "studentGrades": {
+      "name": "studentGrades",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "studentId": {
+          "name": "studentId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "classRoomId": {
+          "name": "classRoomId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subjectId": {
+          "name": "subjectId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "score": {
+          "name": "score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'final'"
+        },
+        "dateRecorded": {
+          "name": "dateRecorded",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "studentGrades_studentId_user_id_fk": {
+          "name": "studentGrades_studentId_user_id_fk",
+          "tableFrom": "studentGrades",
+          "tableTo": "user",
+          "columnsFrom": [
+            "studentId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "studentGrades_classRoomId_classRoom_id_fk": {
+          "name": "studentGrades_classRoomId_classRoom_id_fk",
+          "tableFrom": "studentGrades",
+          "tableTo": "classRoom",
+          "columnsFrom": [
+            "classRoomId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "studentGrades_subjectId_subject_id_fk": {
+          "name": "studentGrades_subjectId_subject_id_fk",
+          "tableFrom": "studentGrades",
+          "tableTo": "subject",
+          "columnsFrom": [
+            "subjectId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

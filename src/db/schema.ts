@@ -33,11 +33,12 @@ export const subject = sqliteTable("subject", {
     createdAt: text("createdAt").notNull().default(sql`CURRENT_TIMESTAMP`),
 })
 
+
 // --------------------------------------------------
-// 2. جداول الربط (Pivot Tables)
+// 2. Pivot Tables (Many-to-Many Relationships)
 // --------------------------------------------------
 
-// يحدد المواد الموجودة في الفصل ومن هو المدرس المسؤول عنها
+// Defines which subjects are taught in each class and which teacher is responsible
 export const classSubjects = sqliteTable("classSubjects", {
     classRoomId: integer("classRoomId", { mode: "number" }).notNull().references(() => classRoom.id, { onDelete: "cascade" }),
     subjectId: integer("subjectId", { mode: "number" }).notNull().references(() => subject.id, { onDelete: "cascade" }),
@@ -46,7 +47,7 @@ export const classSubjects = sqliteTable("classSubjects", {
     pk: primaryKey({ columns: [t.classRoomId, t.subjectId] }),
 }));
 
-// جدول تسجيل الطلاب في الفصول
+// Student enrollment in classes
 export const enrollments = sqliteTable("enrollments", {
     studentId: integer("studentId", { mode: "number" }).notNull().references(() => user.id, { onDelete: "cascade" }),
     classRoomId: integer("classRoomId", { mode: "number" }).notNull().references(() => classRoom.id, { onDelete: "cascade" }),
@@ -56,16 +57,27 @@ export const enrollments = sqliteTable("enrollments", {
     pk: primaryKey({ columns: [t.studentId, t.classRoomId] }),
 }));
 
+export const studentGrades = sqliteTable("studentGrades", {
+    id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+    studentId: integer("studentId", { mode: "number" }).notNull().references(() => user.id, { onDelete: "cascade" }),
+    classRoomId: integer("classRoomId", { mode: "number" }).notNull().references(() => classRoom.id, { onDelete: "cascade" }),
+    subjectId: integer("subjectId", { mode: "number" }).notNull().references(() => subject.id, { onDelete: "cascade" }),
 
+    score: integer("score", { mode: "number" }).notNull(),
+    type: text("type", { enum: ['assignment', 'midterm', 'final'] }).default('final'),
+
+    dateRecorded: text("dateRecorded").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
 
 // --------------------------------------------------
-// 3. العلاقات (Relations) - ضرورية لعمل Drizzle ORM
+// 3. Relations - Required for Drizzle ORM
 // --------------------------------------------------
 
 export const userRelations = relations(user, ({ many, one }) => ({
     schoolsManaged: many(school),
-    classesTaught: many(classSubjects), // الفصول والمواد التي يدرسها المدرس
-    enrollments: many(enrollments), // تسجيلات الطالب
+    classesTaught: many(classSubjects), // Classes and subjects taught by the teacher
+    enrollments: many(enrollments), // Student enrollments
+    studentGrades: many(studentGrades), // Student has multiple grades
 }));
 
 export const schoolRelations = relations(school, ({ many, one }) => ({
@@ -75,12 +87,14 @@ export const schoolRelations = relations(school, ({ many, one }) => ({
 
 export const classRoomRelations = relations(classRoom, ({ many, one }) => ({
     school: one(school, { fields: [classRoom.schoolId], references: [school.id] }),
-    classSubjects: many(classSubjects), // المواد والمدرسون في هذا الفصل
-    enrollments: many(enrollments), // الطلاب المسجلون في هذا الفصل
+    classSubjects: many(classSubjects), // Subjects and teachers in this class
+    enrollments: many(enrollments), // Students enrolled in this class
+    studentGrades: many(studentGrades), // Class has multiple grades
 }));
 
 export const subjectRelations = relations(subject, ({ many }) => ({
-    classesInvolved: many(classSubjects), // الفصول التي تدرس فيها المادة
+    classesInvolved: many(classSubjects), // Classes where this subject is taught
+    studentGrades: many(studentGrades), // Subject has multiple grades
 }));
 
 export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
@@ -92,4 +106,9 @@ export const classSubjectsRelations = relations(classSubjects, ({ one }) => ({
     classRoom: one(classRoom, { fields: [classSubjects.classRoomId], references: [classRoom.id] }),
     subject: one(subject, { fields: [classSubjects.subjectId], references: [subject.id] }),
     teacher: one(user, { fields: [classSubjects.teacherId], references: [user.id] }),
+}));
+export const studentGradesRelations = relations(studentGrades, ({ one }) => ({
+    student: one(user, { fields: [studentGrades.studentId], references: [user.id] }),
+    classRoom: one(classRoom, { fields: [studentGrades.classRoomId], references: [classRoom.id] }),
+    subject: one(subject, { fields: [studentGrades.subjectId], references: [subject.id] }),
 }));
