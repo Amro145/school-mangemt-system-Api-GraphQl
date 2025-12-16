@@ -20,6 +20,21 @@ schoolRoutes.get('/', async (c) => {
     const schools = await db.query.school.findMany({
         with: {
             admin: true,
+            classes: {
+                with: {
+                    
+                    classSubjects: {
+                        columns:{
+                            
+                        },
+                        with: {
+                            teacher: true,
+                            subject: true,
+                        }
+                    },
+
+                }
+            }
         },
     })
     return c.json(schools, 200)
