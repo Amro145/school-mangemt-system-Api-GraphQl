@@ -113,3 +113,17 @@ Authorization: Bearer {{adminToken}}
 GET {{baseUrl}}/connections/all
 Authorization: Bearer {{adminToken}}
 
+###################ENROLLMENTS###################
+### enroll student in class
+POST {{baseUrl}}/enrollments/enroll
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "studentId":2,
+  "classRoomId": 1
+}
+### get all enrollments
+GET {{baseUrl}}/enrollments/all
+Authorization: Bearer {{adminToken}}
+

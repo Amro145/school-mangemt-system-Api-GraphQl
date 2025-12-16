@@ -8,6 +8,7 @@ import schoolRoutes from './controller/schoolController';
 import classesRoutes from './controller/classesController';
 import subjectRoutes from './controller/subjectController';
 import connectionRoutes from './controller/connectionController';
+import enrollmentsRoutes from './controller/enrollmentsController';
 
 export type Env = {
   MY_VAR: string;
@@ -27,6 +28,7 @@ app.route('/schools', schoolRoutes);
 app.route('/classes', classesRoutes);
 app.route('/subjects', subjectRoutes);
 app.route('/connections', connectionRoutes);
+app.route('/enrollments', enrollmentsRoutes);
 
 
 
