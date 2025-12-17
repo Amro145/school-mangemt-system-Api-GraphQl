@@ -5,7 +5,7 @@
 @baseUrl = http://localhost:8787
 # @adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwidXNlck5hbWUiOiJhbXJvIiwiaWF0IjoxNzY1OTM1OTMwLCJleHAiOjE3NjY1NDA3MzB9.iBcvZ8DqhEnzjcFLyJ7HFQiUabd_FLSaGD1sGMFa9WY
 
-@adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6NCwicm9sZSI6ImFkbWluIiwidXNlck5hbWUiOiJBZG1pbiBVc2VyIiwiaWF0IjoxNzY1OTM5Nzc0LCJleHAiOjE3NjY1NDQ1NzR9.ykmm1pHqTIPltE6Mtv4XOeKStekYwPL9otPVL7fJN0w
+@adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MzAsInJvbGUiOiJhZG1pbiIsInVzZXJOYW1lIjoiSmVyb21lIEhpbGxzIiwiaWF0IjoxNzY1OTQ2MDU3LCJleHAiOjE3NjY1NTA4NTd9.AsfK-T1QnITKMpLeajVNCsbVcItvmqiIFPlLRd_XmGo
 ### signup
 POST {{baseUrl}}/users/signup
 Content-Type: application/json
@@ -21,7 +21,7 @@ POST {{baseUrl}}/users/login
 Content-Type: application/json
 
 {
-  "email": "admin_1765936200222@test.com",
+    "email": "Merl.Roberts@yahoo.com",
   "password": "123456"
 }
 ##############################ADMIN##############################
@@ -29,31 +29,31 @@ Content-Type: application/json
 GET {{baseUrl}}/users/admin/teachers
 Authorization: Bearer {{adminToken}}
 ### get my teacher by id
-GET {{baseUrl}}/users/admin/teacher/5
+GET {{baseUrl}}/users/admin/teacher/32
 Authorization: Bearer {{adminToken}}
 ### get my students in by ClassId
-GET {{baseUrl}}/users/admin/students/2
+GET {{baseUrl}}/users/admin/students/12
 Authorization: Bearer {{adminToken}}
 ### get my student by id
-GET {{baseUrl}}/users/admin/student/16l
+GET {{baseUrl}}/users/admin/student/98
 Authorization: Bearer {{adminToken}}
 ### get my classes 
 GET {{baseUrl}}/classes
 Authorization: Bearer {{adminToken}}
 ### get single class
-GET {{baseUrl}}/classes/2
+GET {{baseUrl}}/classes/8
 Authorization: Bearer {{adminToken}}
 ### get all subjects to admin by classId 
-GET {{baseUrl}}/subjects/admin/2
+GET {{baseUrl}}/subjects/admin/8
 Authorization: Bearer {{adminToken}}
 
 
 ##############################DEVELOPER##############################
 ### get all users
-GET {{baseUrl}}/users
+GET {{baseUrl}}/dev/users
 Authorization: Bearer {{adminToken}}
 ### get all students
-GET {{baseUrl}}/users/students
+GET {{baseUrl}}/dev/users/students
 Authorization: Bearer {{adminToken}}
 ### get all teachers
 GET {{baseUrl}}/users/teachers
