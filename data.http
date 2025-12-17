@@ -1,13 +1,11 @@
 ### Variables
-@baseUrl =   https://myapp.amroaltayeb14.workers.dev 
+# @baseUrl =   https://myapp.amroaltayeb14.workers.dev 
 # For local testing, uncomment the line below:
 @studentToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6Miwicm9sZSI6InN0dWRlbnQiLCJ1c2VyTmFtZSI6ImFsaSIsImlhdCI6MTc2NTg0MTIyMSwiZXhwIjoxNzY2NDQ2MDIxfQ.rUf-L_DRA_H1g5cxzbUN7Irw5zdOtJmYO9_fo7uTXhQ
-# @baseUrl = http://localhost:8787
-@adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwidXNlck5hbWUiOiJhbXJvIiwiaWF0IjoxNzY1ODUyMTA2LCJleHAiOjE3NjY0NTY5MDZ9.mbuoWlcbKBIG4Ch9clxps2jTg46cd2t-sITAsoCvzvQ
+@baseUrl = http://localhost:8787
+# @adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwidXNlck5hbWUiOiJhbXJvIiwiaWF0IjoxNzY1OTM1OTMwLCJleHAiOjE3NjY1NDA3MzB9.iBcvZ8DqhEnzjcFLyJ7HFQiUabd_FLSaGD1sGMFa9WY
 
-### get all users (to check what users exist)
-GET {{baseUrl}}/users
-
+@adminToken = eyJhbGciOiJIUzI1NiJ9.eyJpZCI6NCwicm9sZSI6ImFkbWluIiwidXNlck5hbWUiOiJBZG1pbiBVc2VyIiwiaWF0IjoxNzY1OTM5Nzc0LCJleHAiOjE3NjY1NDQ1NzR9.ykmm1pHqTIPltE6Mtv4XOeKStekYwPL9otPVL7fJN0w
 ### signup
 POST {{baseUrl}}/users/signup
 Content-Type: application/json
@@ -23,139 +21,35 @@ POST {{baseUrl}}/users/login
 Content-Type: application/json
 
 {
-  "email": "amro@gmail.com",
+  "email": "admin_1765936200222@test.com",
   "password": "123456"
 }
-### get student
+##############################ADMIN##############################
+### get my teachers
+GET {{baseUrl}}/users/admin/teachers
+Authorization: Bearer {{adminToken}}
+### get my teacher by id
+GET {{baseUrl}}/users/admin/teacher/5
+Authorization: Bearer {{adminToken}}
+### get my students
+GET {{baseUrl}}/users/admin/students
+Authorization: Bearer {{adminToken}}
+### get my student by id
+GET {{baseUrl}}/users/admin/student/10
+Authorization: Bearer {{adminToken}}
+
+
+##############################DEVELOPER##############################
+### get all users
+GET {{baseUrl}}/users
+Authorization: Bearer {{adminToken}}
+### get all students
 GET {{baseUrl}}/users/students
-### get admins with their schools
-GET {{baseUrl}}/users/admin
-### get teachers
+Authorization: Bearer {{adminToken}}
+### get all teachers
 GET {{baseUrl}}/users/teachers
-### delete user
-DELETE {{baseUrl}}/users/2
+Authorization: Bearer {{adminToken}}
+### get all admins
+GET {{baseUrl}}/users/admins
 Authorization: Bearer {{adminToken}}
 
-
-###################SCHOOL###################
-### create school
-POST {{baseUrl}}/schools
-Content-Type: application/json
-Authorization: Bearer {{adminToken}}
-
-{
-  "name": "almanhal",
-  "adminId": 3
-}
-### get schools
-GET {{baseUrl}}/schools
-
-### delete school
-DELETE {{baseUrl}}/schools/1
-Authorization: Bearer {{adminToken}}
-
-###################CLASSES###################
-### create class
-POST {{baseUrl}}/classes
-Content-Type: application/json
-Authorization: Bearer {{adminToken}}
-
-{
-  "name": "class2",
-  "schoolId": 2
-}
-### get classes
-GET {{baseUrl}}/classes
-Authorization: Bearer {{adminToken}}
-### delete class
-DELETE {{baseUrl}}/classes/3
-Authorization: Bearer {{adminToken}}
-
-
-###################SUBJECT###################
-### create subject
-POST {{baseUrl}}/subjects
-Content-Type: application/json
-Authorization: Bearer {{adminToken}}
-
-{
-  "name": "science"
-}
-### get subjects
-GET {{baseUrl}}/subjects
-Authorization: Bearer {{adminToken}}
-### delete subject
-DELETE {{baseUrl}}/subjects/2
-Authorization: Bearer {{adminToken}}
-
-###################CONNECTION###################
-### connect between class and subject
-POST {{baseUrl}}/connections/connect
-Content-Type: application/json
-Authorization: Bearer {{adminToken}}
-
-{
-  "classRoomId": 1,
-  "subjectId": 1,
-  "teacherId":3
-}
-### disconnect between class and subject
-DELETE {{baseUrl}}/connections/disconnect
-Content-Type: application/json
-Authorization: Bearer {{adminToken}}
-
-{
-  "classRoomId": 1,
-  "subjectId": 1,
-  "teacherId": 1
-}
-### get all connections data with school name
-GET {{baseUrl}}/connections/all
-Authorization: Bearer {{adminToken}}
-
-###################ENROLLMENTS###################
-### enroll student in class
-POST {{baseUrl}}/enrollments/enroll
-Content-Type: application/json
-Authorization: Bearer {{adminToken}}
-
-{
-  "studentId":2,
-  "classRoomId": 1
-}
-### get all enrollments
-GET {{baseUrl}}/enrollments/all
-Authorization: Bearer {{adminToken}}
-
-###################GRADE###################
-### create grade
-POST {{baseUrl}}/grades
-Content-Type: application/json
-Authorization: Bearer {{adminToken}}
-
-{
-  "studentId":4,
-  "classRoomId": 1,
-  "subjectId": 1,
-  "score": 90,
-  "type": "final"
-}
-### get all grades
-GET {{baseUrl}}/grades
-Authorization: Bearer {{adminToken}}
-### update grade
-PUT {{baseUrl}}/grades/1
-Content-Type: application/json
-Authorization: Bearer {{adminToken}}
-
-{
-  "id": 1,
-  "studentId":2,
-  "classRoomId": 1,
-  "subjectId": 1,
-  "score": 20,
-  "type": "final"
-}
-### delete grade
-DELETE {{baseUrl}}/grades/2
-Authorization: Bearer {{adminToken}}

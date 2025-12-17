@@ -41,10 +41,12 @@ export const adminOnly = async (c: Context<{ Bindings: Env; Variables: Variables
     return next();
 }
 
-export const checkAuthStatus = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
+export const developerOnly = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
     const user = c.get('user');
-    if (!user) {
-        return c.json({ error: 'Unauthorized' }, 401);
+    if (!user || user?.role !== 'admin' ) {
+        return c.json({ error: 'Developer only' }, 403);
     }
+    console.log(user);
     return next();
 }
+

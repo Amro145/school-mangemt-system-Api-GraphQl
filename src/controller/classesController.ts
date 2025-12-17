@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../db/schema';
 import { Env, Variables } from '../index';
-import { adminOnly, authenticate } from '../middlewares/middleware';
+import { adminOnly, authenticate, developerOnly } from '../middlewares/middleware';
 import { eq } from 'drizzle-orm';
 
 const classesRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -21,7 +21,7 @@ classesRoutes.post('/', authenticate, adminOnly, async (c) => {
 });
 
 // get all classes
-classesRoutes.get('/', authenticate, adminOnly, async (c) => {
+classesRoutes.get('/', authenticate, developerOnly, async (c) => {
     const db = drizzle(c.env.myAppD1, { schema })
     const classes = await db.query.classRoom.findMany({
         columns: {
@@ -44,6 +44,38 @@ classesRoutes.get('/', authenticate, adminOnly, async (c) => {
     });
     return c.json({ classes }, 200);
 });
+// get Admin classes
+classesRoutes.get('/admin/:id', authenticate, adminOnly, async (c) => {
+    const db = drizzle(c.env.myAppD1, { schema })
+    const classes = await db.query.classRoom.findMany({
+        where: eq(schema.classRoom.schoolId, Number(c.req.param('id'))),
+        columns: {
+            name: true,
+            id: true,
+            createdAt: true,
+        },
+        with: {
+            school: {
+                columns: {
+                    name: true,
+                    id: true,
+                    adminId: true,
+                }
+            },
+            classSubjects: {
+                columns: {
+
+                },
+                with: {
+                    subject: true,
+                    teacher: true
+                }
+            },
+            enrollments: true
+        }
+    });
+    return c.json({ classes }, 200);
+})
 // delete class
 classesRoutes.delete('/:id', authenticate, adminOnly, async (c) => {
     const id = c.req.param('id');
