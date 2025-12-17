@@ -35,13 +35,13 @@ Authorization: Bearer {{adminToken}}
 GET {{baseUrl}}/users/admin/students/2
 Authorization: Bearer {{adminToken}}
 ### get my student by id
-GET {{baseUrl}}/users/admin/student/16
+GET {{baseUrl}}/users/admin/student/16l
 Authorization: Bearer {{adminToken}}
 ### get my classes 
 GET {{baseUrl}}/classes
 Authorization: Bearer {{adminToken}}
 ### get single class
-GET {{baseUrl}}/classes/1
+GET {{baseUrl}}/classes/2
 Authorization: Bearer {{adminToken}}
 
 

@@ -26,9 +26,9 @@ classesRoutes.get('/', authenticate, adminOnly, async (c) => {
     const adminSchools = await db.query.school.findMany({ where: eq(schema.school.adminId, currentUser.id) });
     const schoolIds = adminSchools.map((school) => school.id);
     const classes = await db.query.classRoom.findMany(
-        { where: inArray(schema.classRoom.schoolId, schoolIds)},
+        { where: inArray(schema.classRoom.schoolId, schoolIds) },
     );
-return c.json(classes, 200);
+    return c.json(classes, 200);
 })
 // get Single class
 classesRoutes.get('/:id', authenticate, adminOnly, async (c) => {
@@ -36,7 +36,30 @@ classesRoutes.get('/:id', authenticate, adminOnly, async (c) => {
     const currentUser = c.get('user');
 
     const db = drizzle(c.env.myAppD1, { schema })
-    const classRoom = await db.query.classRoom.findFirst({ where: eq(schema.classRoom.id, Number(id)) });
+    const classRoom = await db.query.classRoom.findFirst({
+        where: eq(schema.classRoom.id, Number(id)),
+        with: {
+            school: true,
+            classSubjects: {
+                columns: {
+                },
+                with: {
+                    subject: true,
+                    teacher: true
+                }
+            },
+            enrollments: {
+                columns: {
+                },
+                with: {
+                    student: true
+                }
+            }
+        }
+    });
+    if (!classRoom || classRoom.school.adminId !== currentUser.id) {
+        return c.json({ error: "Class not found or access denied" }, 404);
+    }
     return c.json({ classRoom }, 200);
 })
 // delete class
