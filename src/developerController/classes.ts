@@ -28,7 +28,7 @@ classesRoutesDeveloper.get('/', authenticate, developerOnly, async (c) => {
             }
         }
     });
-    return c.json({ classes }, 200);
+    return c.json(classes, 200);
 });
 
 export default classesRoutesDeveloper

@@ -71,7 +71,7 @@ gradeRoutes.post('/', authenticate, adminOnly, async (c) => {
     }
 
     const grade = await db.insert(schema.studentGrades).values({ studentId, classRoomId, subjectId, score, type }).returning()
-    return c.json({ grade }, 201);
+    return c.json(grade, 201);
 });
 // get all grades
 gradeRoutes.get('/', async (c) => {
@@ -109,15 +109,22 @@ gradeRoutes.get('/', async (c) => {
 })
 // update grade
 gradeRoutes.put('/:id', authenticate, adminOnly, async (c) => {
-    const id = c.req.param("id");
+    const id = Number(c.req.param("id"));
     const body = await c.req.json();
     const db = drizzle(c.env.myAppD1, { schema })
     const { studentId, classRoomId, subjectId, score, type } = body;
 
+    if (isNaN(id)) {
+        return c.json({ error: "Invalid request parameters" }, 400);
+    }
+
     // Check if grade exists
-    const existing = await db.select().from(schema.studentGrades).where(eq(schema.studentGrades.id, Number(id)));
-    if (!existing.length) {
-        return c.json({ error: "Grade not found" }, 404);
+    const existing = await db.query.studentGrades.findFirst({
+        where: eq(schema.studentGrades.id, id)
+    });
+
+    if (!existing) {
+        return c.json({ error: "Resource not found" }, 404);
     }
 
     // Validate score if provided
@@ -130,22 +137,29 @@ gradeRoutes.put('/:id', authenticate, adminOnly, async (c) => {
         return c.json({ error: "Type must be one of: assignment, midterm, final" }, 400);
     }
 
-    const grade = await db.update(schema.studentGrades).set({ studentId, classRoomId, subjectId, score, type }).where(eq(schema.studentGrades.id, Number(id))).returning()
-    return c.json({ grade }, 200)
+    const [grade] = await db.update(schema.studentGrades).set({ studentId, classRoomId, subjectId, score, type }).where(eq(schema.studentGrades.id, id)).returning()
+    return c.json(grade, 200)
 })
 // delete grade
 gradeRoutes.delete('/:id', authenticate, adminOnly, async (c) => {
-    const id = c.req.param("id");
+    const id = Number(c.req.param("id"));
     const db = drizzle(c.env.myAppD1, { schema })
 
-    // Check if grade exists
-    const existing = await db.select().from(schema.studentGrades).where(eq(schema.studentGrades.id, Number(id)));
-    if (!existing.length) {
-        return c.json({ error: "Grade not found" }, 404);
+    if (isNaN(id)) {
+        return c.json({ error: "Invalid request parameters" }, 400);
     }
 
-    const grade = await db.delete(schema.studentGrades).where(eq(schema.studentGrades.id, Number(id))).returning()
-    return c.json({ grade }, 200)
+    // Check if grade exists
+    const existing = await db.query.studentGrades.findFirst({
+        where: eq(schema.studentGrades.id, id)
+    });
+
+    if (!existing) {
+        return c.json({ error: "Resource not found" }, 404);
+    }
+
+    const [grade] = await db.delete(schema.studentGrades).where(eq(schema.studentGrades.id, id)).returning()
+    return c.json(grade, 200)
 })
 
 export default gradeRoutes

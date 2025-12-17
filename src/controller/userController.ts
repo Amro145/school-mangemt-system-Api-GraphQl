@@ -63,41 +63,35 @@ userRoutes.post("/login", async (c) => {
     return c.json({ user, token }, 200)
 })
 // delete user
+// delete user
 userRoutes.delete("/delete/:id", authenticate, adminOnly, async (c) => {
     const db = drizzle(c.env.myAppD1, { schema })
-    const idParam = c.req.param("id")
-    const id = Number(idParam)
+    const id = Number(c.req.param("id"))
 
-    if (!id || isNaN(id)) {
-        return c.json({ error: "Invalid user ID" }, 400)
+    if (isNaN(id)) {
+        return c.json({ error: "Invalid request parameters" }, 400)
     }
-    const user = await db.select().from(schema.user).where(eq(schema.user.id, id))
+
+    const user = await db.query.user.findFirst({
+        where: eq(schema.user.id, id)
+    })
 
     if (!user) {
-        return c.json({ error: "User not found" }, 404)
+        return c.json({ error: "Resource not found" }, 404)
     }
 
-    const userToDelete = await db.select({
-        id: schema.user.id,
-        role: schema.user.role,
-    }).from(schema.user).where(eq(schema.user.id, id))
-    if (userToDelete.length === 0) {
-        return c.json({ error: "User not found" }, 404)
-    } else if (userToDelete[0].role === "admin") {
-        return c.json({ error: "Admin cannot be deleted" }, 400)
-    } else {
-        await db.delete(schema.user).where(eq(schema.user.id, id)).returning()
+    if (user.role === "admin") {
+        return c.json({ error: "Access denied: Unauthorized" }, 403)
     }
-    return c.json({ message: "User deleted successfully", userToDelete }, 200)
+
+    const [deletedUser] = await db.delete(schema.user).where(eq(schema.user.id, id)).returning()
+    return c.json({ message: "User deleted successfully", user: deletedUser }, 200)
 })
 // get Profile
 userRoutes.get("/admin/profile", authenticate, async (c) => {
-    const db = drizzle(c.env.myAppD1, { schema })
-    const idParam = c.req.param("id")
-    const id = Number(idParam)
     const currentUser = c.get('user');
-    if (!currentUser || currentUser === null) {
-        return c.json({ error: "User not found" }, 404)
+    if (!currentUser) {
+        return c.json({ error: "Resource not found" }, 404)
     }
     return c.json(currentUser, 200)
 })
@@ -134,8 +128,12 @@ userRoutes.get("/admin/teachers", authenticate, adminOnly, async (c) => {
 userRoutes.get("/admin/teacher/:id", authenticate, adminOnly, async (c) => {
     const currentUser = c.get('user');
     const db = drizzle(c.env.myAppD1, { schema });
-    const idParam = c.req.param("id")
-    const id = Number(idParam)
+    const id = Number(c.req.param("id"))
+
+    if (isNaN(id)) {
+        return c.json({ error: "Invalid request parameters" }, 400)
+    }
+
     const teacher = await db.select(
         {
             id: schema.user.id,
@@ -157,8 +155,9 @@ userRoutes.get("/admin/teacher/:id", authenticate, adminOnly, async (c) => {
             eq(schema.school.adminId, currentUser.id)
         ))
         .groupBy(schema.user.id);
+
     if (!teacher || teacher.length === 0) {
-        return c.json({ error: "Teacher not found" }, 404)
+        return c.json({ error: "Resource not found" }, 404)
     }
     return c.json(teacher, 200)
 })
@@ -166,8 +165,11 @@ userRoutes.get("/admin/teacher/:id", authenticate, adminOnly, async (c) => {
 userRoutes.get("/admin/students/:classRoomId", authenticate, adminOnly, async (c) => {
     const currentUser = c.get('user');
     const db = drizzle(c.env.myAppD1, { schema });
-    const classRoomIdParam = c.req.param("classRoomId")
-    const classRoomId = Number(classRoomIdParam)
+    const classRoomId = Number(c.req.param("classRoomId"))
+
+    if (isNaN(classRoomId)) {
+        return c.json({ error: "Invalid request parameters" }, 400)
+    }
     const students = await db.select({
         id: schema.user.id,
         userName: schema.user.userName,
@@ -191,9 +193,13 @@ userRoutes.get("/admin/students/:classRoomId", authenticate, adminOnly, async (c
 // get single student to admin
 userRoutes.get("/admin/student/:id", authenticate, adminOnly, async (c) => {
     const db = drizzle(c.env.myAppD1, { schema });
-    const idParam = c.req.param("id")
-    const id = Number(idParam)
-    const student = await db.query.user.findMany({
+    const id = Number(c.req.param("id"))
+
+    if (isNaN(id)) {
+        return c.json({ error: "Invalid request parameters" }, 400)
+    }
+
+    const student = await db.query.user.findFirst({
         where: and(
             eq(schema.user.role, "student"),
             eq(schema.user.id, id),
@@ -207,14 +213,13 @@ userRoutes.get("/admin/student/:id", authenticate, adminOnly, async (c) => {
                         },
                     },
                     subject: true,
-
                 }
-
             },
         }
     })
+
     if (!student) {
-        return c.json({ error: "Student not found" }, 404)
+        return c.json({ error: "Resource not found" }, 404)
     }
     return c.json(student, 200)
 })
