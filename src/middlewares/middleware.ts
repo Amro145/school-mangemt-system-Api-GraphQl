@@ -33,20 +33,20 @@ export const authenticate = async (c: Context<{ Bindings: Env; Variables: Variab
 };
 
 export const adminOnly = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
-    const user = c.get('user');
-    if (!user || user?.role !== 'admin') {
+    const currentUser = c.get('user');
+    if (!currentUser || currentUser?.role !== 'admin') {
         return c.json({ error: 'Admin only' }, 403);
     }
-    console.log(user);
+    console.log(currentUser);
     return next();
 }
 
 export const developerOnly = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
-    const user = c.get('user');
-    if (!user || user?.role !== 'admin' ) {
+    const currentUser = c.get('user');
+    if (!currentUser || currentUser?.role !== 'admin') {
         return c.json({ error: 'Developer only' }, 403);
     }
-    console.log(user);
+    console.log(currentUser);
     return next();
 }
 

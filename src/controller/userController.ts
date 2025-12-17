@@ -103,7 +103,7 @@ userRoutes.get("/admin/profile", authenticate, async (c) => {
 })
 // get Techers to admin
 userRoutes.get("/admin/teachers", authenticate, adminOnly, async (c) => {
-    const user = c.get('user');
+    const currentUser = c.get('user');
     const db = drizzle(c.env.myAppD1, { schema });
 
     const teachers = await db.select({
@@ -124,7 +124,7 @@ userRoutes.get("/admin/teachers", authenticate, adminOnly, async (c) => {
         .innerJoin(schema.school, eq(schema.classRoom.schoolId, schema.school.id))
         .where(and(
             eq(schema.user.role, "teacher"),
-            eq(schema.school.adminId, user.id)
+            eq(schema.school.adminId, currentUser.id)
         ))
         .groupBy(schema.user.id);
 
@@ -132,7 +132,7 @@ userRoutes.get("/admin/teachers", authenticate, adminOnly, async (c) => {
 })
 //get signale Teacher to admin
 userRoutes.get("/admin/teacher/:id", authenticate, adminOnly, async (c) => {
-    const user = c.get('user');
+    const currentUser = c.get('user');
     const db = drizzle(c.env.myAppD1, { schema });
     const idParam = c.req.param("id")
     const id = Number(idParam)
@@ -154,7 +154,7 @@ userRoutes.get("/admin/teacher/:id", authenticate, adminOnly, async (c) => {
         .where(and(
             eq(schema.user.role, "teacher"),
             eq(schema.user.id, id),
-            eq(schema.school.adminId, user.id)
+            eq(schema.school.adminId, currentUser.id)
         ))
         .groupBy(schema.user.id);
     if (!teacher || teacher.length === 0) {
@@ -162,30 +162,27 @@ userRoutes.get("/admin/teacher/:id", authenticate, adminOnly, async (c) => {
     }
     return c.json(teacher, 200)
 })
-// get students to admin 
-userRoutes.get("/admin/students", authenticate, adminOnly, async (c) => {
-    const user = c.get('user');
+// get students to to admin by classRoomId 
+userRoutes.get("/admin/students/:classRoomId", authenticate, adminOnly, async (c) => {
+    const currentUser = c.get('user');
     const db = drizzle(c.env.myAppD1, { schema });
-
+    const classRoomIdParam = c.req.param("classRoomId")
+    const classRoomId = Number(classRoomIdParam)
     const students = await db.select({
         id: schema.user.id,
         userName: schema.user.userName,
         email: schema.user.email,
         role: schema.user.role,
         createdAt: schema.user.createdAt,
-        classRoom: {
-            id: schema.classRoom.id,
-            name: schema.classRoom.name,
-            createdAt: schema.classRoom.createdAt,
-        },
+        classRoomId: schema.enrollments.classRoomId,
     }).from(schema.user)
         .innerJoin(schema.enrollments, eq(schema.user.id, schema.enrollments.studentId))
         .innerJoin(schema.classRoom, eq(schema.enrollments.classRoomId, schema.classRoom.id))
         .innerJoin(schema.school, eq(schema.classRoom.schoolId, schema.school.id))
-
         .where(and(
             eq(schema.user.role, "student"),
-            eq(schema.school.adminId, user.id)
+            eq(schema.enrollments.classRoomId, classRoomId),
+            eq(schema.school.adminId, currentUser.id)
         ))
         .groupBy(schema.user.id);
 
@@ -193,41 +190,33 @@ userRoutes.get("/admin/students", authenticate, adminOnly, async (c) => {
 })
 // get single student to admin
 userRoutes.get("/admin/student/:id", authenticate, adminOnly, async (c) => {
-    const user = c.get('user');
     const db = drizzle(c.env.myAppD1, { schema });
     const idParam = c.req.param("id")
     const id = Number(idParam)
-    const students = await db.select({
-        id: schema.user.id,
-        userName: schema.user.userName,
-        email: schema.user.email,
-        role: schema.user.role,
-        createdAt: schema.user.createdAt,
-        classRoom: {
-            id: schema.classRoom.id,
-            name: schema.classRoom.name,
-            createdAt: schema.classRoom.createdAt,
-        },
-        studentGrades: {
-            id: schema.studentGrades.id,
-            grade: schema.studentGrades.score,
-            subjectId: schema.studentGrades.subjectId,
-            subjectName: schema.subject.name,
-        },
-    }).from(schema.user)
-        .innerJoin(schema.enrollments, eq(schema.user.id, schema.enrollments.studentId))
-        .innerJoin(schema.classRoom, eq(schema.enrollments.classRoomId, schema.classRoom.id))
-        .innerJoin(schema.school, eq(schema.classRoom.schoolId, schema.school.id))
-        .innerJoin(schema.studentGrades, eq(schema.user.id, schema.studentGrades.studentId))
-        .innerJoin(schema.subject, eq(schema.studentGrades.subjectId, schema.subject.id))
-        .where(and(
+    const student = await db.query.user.findMany({
+        where: and(
             eq(schema.user.role, "student"),
             eq(schema.user.id, id),
-            eq(schema.school.adminId, user.id)
-        ))
-        .groupBy(schema.user.id);
+        ),
+        with: {
+            studentGrades: {
+                with: {
+                    classRoom: {
+                        with: {
+                            school: true,
+                        },
+                    },
+                    subject: true,
 
-    return c.json(students, 200);
+                }
+
+            },
+        }
+    })
+    if (!student) {
+        return c.json({ error: "Student not found" }, 404)
+    }
+    return c.json(student, 200)
 })
 
 

@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../db/schema';
 import { Env, Variables } from '../index';
 import { adminOnly, authenticate, developerOnly } from '../middlewares/middleware';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 const classesRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 //  Create class 
@@ -19,65 +19,28 @@ classesRoutes.post('/', authenticate, adminOnly, async (c) => {
     const classRoom = await db.insert(schema.classRoom).values({ name, schoolId }).returning();
     return c.json({ classRoom }, 201);
 });
-
-// get all classes
-classesRoutes.get('/', authenticate, developerOnly, async (c) => {
-    const db = drizzle(c.env.myAppD1, { schema })
-    const classes = await db.query.classRoom.findMany({
-        columns: {
-            name: true,
-            id: true,
-            createdAt: true,
-        },
-        with: {
-            school: true,
-            classSubjects: {
-                columns: {
-
-                },
-                with: {
-                    subject: true,
-                    teacher: true
-                }
-            }
-        }
-    });
-    return c.json({ classes }, 200);
-});
 // get Admin classes
-classesRoutes.get('/admin/:id', authenticate, adminOnly, async (c) => {
+classesRoutes.get('/', authenticate, adminOnly, async (c) => {
     const db = drizzle(c.env.myAppD1, { schema })
-    const classes = await db.query.classRoom.findMany({
-        where: eq(schema.classRoom.schoolId, Number(c.req.param('id'))),
-        columns: {
-            name: true,
-            id: true,
-            createdAt: true,
-        },
-        with: {
-            school: {
-                columns: {
-                    name: true,
-                    id: true,
-                    adminId: true,
-                }
-            },
-            classSubjects: {
-                columns: {
+    const currentUser = c.get('user');
+    const adminSchools = await db.query.school.findMany({ where: eq(schema.school.adminId, currentUser.id) });
+    const schoolIds = adminSchools.map((school) => school.id);
+    const classes = await db.query.classRoom.findMany(
+        { where: inArray(schema.classRoom.schoolId, schoolIds)},
+    );
+return c.json(classes, 200);
+})
+// get Single class
+classesRoutes.get('/:id', authenticate, adminOnly, async (c) => {
+    const id = c.req.param('id');
+    const currentUser = c.get('user');
 
-                },
-                with: {
-                    subject: true,
-                    teacher: true
-                }
-            },
-            enrollments: true
-        }
-    });
-    return c.json({ classes }, 200);
+    const db = drizzle(c.env.myAppD1, { schema })
+    const classRoom = await db.query.classRoom.findFirst({ where: eq(schema.classRoom.id, Number(id)) });
+    return c.json({ classRoom }, 200);
 })
 // delete class
-classesRoutes.delete('/:id', authenticate, adminOnly, async (c) => {
+classesRoutes.delete('/delete/:id', authenticate, adminOnly, async (c) => {
     const id = c.req.param('id');
     const db = drizzle(c.env.myAppD1, { schema })
     const classRoom = await db.delete(schema.classRoom).where(eq(schema.classRoom.id, Number(id))).returning();

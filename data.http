@@ -31,11 +31,17 @@ Authorization: Bearer {{adminToken}}
 ### get my teacher by id
 GET {{baseUrl}}/users/admin/teacher/5
 Authorization: Bearer {{adminToken}}
-### get my students
-GET {{baseUrl}}/users/admin/students
+### get my students in by ClassId
+GET {{baseUrl}}/users/admin/students/2
 Authorization: Bearer {{adminToken}}
 ### get my student by id
-GET {{baseUrl}}/users/admin/student/10
+GET {{baseUrl}}/users/admin/student/16
+Authorization: Bearer {{adminToken}}
+### get my classes 
+GET {{baseUrl}}/classes
+Authorization: Bearer {{adminToken}}
+### get single class
+GET {{baseUrl}}/classes/1
 Authorization: Bearer {{adminToken}}
 
 
@@ -52,4 +58,8 @@ Authorization: Bearer {{adminToken}}
 ### get all admins
 GET {{baseUrl}}/users/admins
 Authorization: Bearer {{adminToken}}
+### get all classes
+GET {{baseUrl}}/dev/classes
+Authorization: Bearer {{adminToken}}
+
 
