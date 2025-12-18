@@ -1,5 +1,5 @@
 {
-  "name": "myApp",
+  "name": "school-management-api",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -8,13 +8,16 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "npx wrangler d1 execute myAppD1 --local --file=./seed.sql"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",
     "bcryptjs": "^3.0.3",
     "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
+    "graphql": "^16.12.0",
+    "graphql-yoga": "^5.18.0",
     "hono": "^4.11.0",
     "jose": "^6.1.3"
   },
