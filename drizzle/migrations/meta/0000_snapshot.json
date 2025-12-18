@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6e10eead-48bb-4ed3-9282-9ed0f6c7d547",
+  "id": "5af2d1f2-3069-4664-90c8-89ade1316114",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "classRoom": {
@@ -54,152 +54,6 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "classSubjects": {
-      "name": "classSubjects",
-      "columns": {
-        "classRoomId": {
-          "name": "classRoomId",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "subjectId": {
-          "name": "subjectId",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "teacherId": {
-          "name": "teacherId",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "classSubjects_classRoomId_classRoom_id_fk": {
-          "name": "classSubjects_classRoomId_classRoom_id_fk",
-          "tableFrom": "classSubjects",
-          "tableTo": "classRoom",
-          "columnsFrom": [
-            "classRoomId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "classSubjects_subjectId_subject_id_fk": {
-          "name": "classSubjects_subjectId_subject_id_fk",
-          "tableFrom": "classSubjects",
-          "tableTo": "subject",
-          "columnsFrom": [
-            "subjectId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "classSubjects_teacherId_user_id_fk": {
-          "name": "classSubjects_teacherId_user_id_fk",
-          "tableFrom": "classSubjects",
-          "tableTo": "user",
-          "columnsFrom": [
-            "teacherId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "classSubjects_classRoomId_subjectId_pk": {
-          "columns": [
-            "classRoomId",
-            "subjectId"
-          ],
-          "name": "classSubjects_classRoomId_subjectId_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "enrollments": {
-      "name": "enrollments",
-      "columns": {
-        "studentId": {
-          "name": "studentId",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "classRoomId": {
-          "name": "classRoomId",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "enrollments_studentId_user_id_fk": {
-          "name": "enrollments_studentId_user_id_fk",
-          "tableFrom": "enrollments",
-          "tableTo": "user",
-          "columnsFrom": [
-            "studentId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "enrollments_classRoomId_classRoom_id_fk": {
-          "name": "enrollments_classRoomId_classRoom_id_fk",
-          "tableFrom": "enrollments",
-          "tableTo": "classRoom",
-          "columnsFrom": [
-            "classRoomId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "enrollments_studentId_classRoomId_pk": {
-          "columns": [
-            "studentId",
-            "classRoomId"
-          ],
-          "name": "enrollments_studentId_classRoomId_pk"
-        }
-      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -273,15 +127,15 @@
           "notNull": true,
           "autoincrement": false
         },
-        "classRoomId": {
-          "name": "classRoomId",
+        "subjectId": {
+          "name": "subjectId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "subjectId": {
-          "name": "subjectId",
+        "classId": {
+          "name": "classId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -293,14 +147,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "'final'"
         },
         "dateRecorded": {
           "name": "dateRecorded",
@@ -326,19 +172,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "studentGrades_classRoomId_classRoom_id_fk": {
-          "name": "studentGrades_classRoomId_classRoom_id_fk",
-          "tableFrom": "studentGrades",
-          "tableTo": "classRoom",
-          "columnsFrom": [
-            "classRoomId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "studentGrades_subjectId_subject_id_fk": {
           "name": "studentGrades_subjectId_subject_id_fk",
           "tableFrom": "studentGrades",
@@ -350,6 +183,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "studentGrades_classId_classRoom_id_fk": {
+          "name": "studentGrades_classId_classRoom_id_fk",
+          "tableFrom": "studentGrades",
+          "tableTo": "classRoom",
+          "columnsFrom": [
+            "classId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -374,6 +220,20 @@
           "notNull": true,
           "autoincrement": false
         },
+        "classId": {
+          "name": "classId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "teacherId": {
+          "name": "teacherId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "createdAt": {
           "name": "createdAt",
           "type": "text",
@@ -384,7 +244,34 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "subject_classId_classRoom_id_fk": {
+          "name": "subject_classId_classRoom_id_fk",
+          "tableFrom": "subject",
+          "tableTo": "classRoom",
+          "columnsFrom": [
+            "classId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "subject_teacherId_user_id_fk": {
+          "name": "subject_teacherId_user_id_fk",
+          "tableFrom": "subject",
+          "tableTo": "user",
+          "columnsFrom": [
+            "teacherId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -420,14 +307,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
-        },
         "role": {
           "name": "role",
           "type": "text",
@@ -435,6 +314,28 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'student'"
+        },
+        "schoolId": {
+          "name": "schoolId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "classId": {
+          "name": "classId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
         }
       },
       "indexes": {
@@ -446,7 +347,34 @@
           "isUnique": true
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "user_schoolId_school_id_fk": {
+          "name": "user_schoolId_school_id_fk",
+          "tableFrom": "user",
+          "tableTo": "school",
+          "columnsFrom": [
+            "schoolId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_classId_classRoom_id_fk": {
+          "name": "user_classId_classRoom_id_fk",
+          "tableFrom": "user",
+          "tableTo": "classRoom",
+          "columnsFrom": [
+            "classId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
