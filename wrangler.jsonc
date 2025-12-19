@@ -7,7 +7,7 @@
 		{
 			"binding": "myAppD1",
 			"database_name": "myAppD1",
-			"database_id": "38cba086-fad7-49fa-a486-8b5eb41fa048",
+			"database_id": "71453871-d5e0-4257-9ce7-561e13d7487e",
 			"migrations_dir": "drizzle/migrations",
 			"remote": false
 		}
