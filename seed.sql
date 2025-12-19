@@ -1,58 +1,45 @@
--- تنظيف البيانات القديمة
+-- إيقاف التحقق من القيود لتسهيل عملية التنظيف
 PRAGMA foreign_keys = OFF;
+
+-- تنظيف الجداول الحالية فقط (التي عرفناها في schema.ts)
 DELETE FROM studentGrades;
-DELETE FROM enrollments;
-DELETE FROM classSubjects;
 DELETE FROM subject;
 DELETE FROM classRoom;
 DELETE FROM school;
 DELETE FROM user;
+
+-- إعادة تصفير الـ Auto Increment (اختياري لتبدأ الـ IDs من 1)
+DELETE FROM sqlite_sequence WHERE name IN ('user', 'school', 'classRoom', 'subject', 'studentGrades');
+
 PRAGMA foreign_keys = ON;
 
--- 1. إضافة المستخدمين (الكلمة هي 123456 لجميع الحسابات)
--- المسؤولين (Admins)
-INSERT INTO user (id, userName, email, password, role) VALUES 
-(1, 'Amro Admin', 'amro@gmail.com', '$2a$10$pxHhS2O79.uN3h/RjX5EueqD.yP3.jW8G6x6Hj5F2H2X2X2X2X2X2', 'admin'),
-(2, 'Sara Admin', 'sara@gmail.com', '$2a$10$pxHhS2O79.uN3h/RjX5EueqD.yP3.jW8G6x6Hj5F2H2X2X2X2X2X2', 'admin');
+-- 1. إضافة المدير (Admin)
+INSERT INTO user (userName, email, password, role) 
+VALUES ('Amro Admin', 'admin@school.com', '$2a$10$Ph9p5S5z5p5S5z5p5S5z5u.eGzD.kZzD.kZzD.kZzD.kZzD.kZz', 'admin');
 
--- المعلمون (Teachers)
-INSERT INTO user (id, userName, email, password, role) VALUES 
-(3, 'Mr. Ahmed', 'ahmed@teacher.com', '$2a$10$pxHhS2O79.uN3h/RjX5EueqD.yP3.jW8G6x6Hj5F2H2X2X2X2X2X2', 'teacher'),
-(4, 'Ms. Laila', 'laila@teacher.com', '$2a$10$pxHhS2O79.uN3h/RjX5EueqD.yP3.jW8G6x6Hj5F2H2X2X2X2X2X2', 'teacher');
+-- 2. إضافة المدرسة (مرتبطة بالمدير رقم 1)
+INSERT INTO school (name, adminId) 
+VALUES ('Amro Excellence School', 1);
 
--- الطلاب (Students)
-INSERT INTO user (id, userName, email, password, role) VALUES 
-(5, 'Omar Khalid', 'omar@student.com', '$2a$10$pxHhS2O79.uN3h/RjX5EueqD.yP3.jW8G6x6Hj5F2H2X2X2X2X2X2', 'student'),
-(6, 'Zaid Ali', 'zaid@student.com', '$2a$10$pxHhS2O79.uN3h/RjX5EueqD.yP3.jW8G6x6Hj5F2H2X2X2X2X2X2', 'student');
+-- 3. تحديث مدرسة المدير ليتبعها
+UPDATE user SET schoolId = 1 WHERE id = 1;
 
--- 2. إضافة المدارس
-INSERT INTO school (id, name, adminId) VALUES 
-(1, 'Amro Academy', 1),
-(2, 'Elite School', 2);
+-- 4. إضافة معلم (Teacher)
+INSERT INTO user (userName, email, password, role, schoolId) 
+VALUES ('Mr. Ahmed', 'ahmed@school.com', '$2a$10$Ph9p5S5z5p5S5z5p5S5z5u.eGzD.kZzD.kZzD.kZzD.kZzD.kZz', 'teacher', 1);
 
--- 3. إضافة الفصول الدراسية
-INSERT INTO classRoom (id, name, schoolId) VALUES 
-(1, 'Grade 10-A', 1),
-(2, 'Grade 11-B', 1),
-(3, 'Pre-Med', 2);
+-- 5. إضافة فصل (ClassRoom)
+INSERT INTO classRoom (name, schoolId) 
+VALUES ('Class 10A', 1);
 
--- 4. إضافة المواد
-INSERT INTO subject (id, name) VALUES 
-(1, 'Mathematics'),
-(2, 'Physics'),
-(3, 'Chemistry');
+-- 6. إضافة طالب (Student) مرتبط بالفصل مباشرة عبر classId
+INSERT INTO user (userName, email, password, role, schoolId, classId) 
+VALUES ('Sami Student', 'sami@school.com', '$2a$10$Ph9p5S5z5p5S5z5p5S5z5u.eGzD.kZzD.kZzD.kZzD.kZzD.kZz', 'student', 1, 1);
 
--- 5. ربط المواد بالمعلمين في الفصول
-INSERT INTO classSubjects (classRoomId, subjectId, teacherId) VALUES 
-(1, 1, 3), -- الرياضيات في فصل 10A يدرسها أحمد
-(1, 2, 4); -- الفيزياء في فصل 10A تدرسها ليلى
+-- 7. إضافة مادة (Subject) مرتبطة بالفصل ومعلم مباشرة
+INSERT INTO subject (name, classId, teacherId) 
+VALUES ('Mathematics', 1, 2);
 
--- 6. تسجيل الطلاب في الفصول
-INSERT INTO enrollments (studentId, classRoomId) VALUES 
-(5, 1),
-(6, 1);
-
--- 7. إضافة درجات تجريبية
-INSERT INTO studentGrades (id, studentId, classRoomId, subjectId, score, type) VALUES 
-(1, 5, 1, 1, 95, 'final'),
-(2, 6, 1, 1, 88, 'midterm');
+-- 8. إضافة درجة للطالب
+INSERT INTO studentGrades (studentId, subjectId, classId, score) 
+VALUES (3, 1, 1, 95);
