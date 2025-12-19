@@ -61,6 +61,14 @@ const typeDefs = /* GraphQL */ `
     students: [User]
   }
 
+  type AdminStats {
+  totalStudents: Int
+  totalTeachers: Int
+  totalClassRooms: Int
+}
+
+
+
   type Query {
     me: User
     mySchool: School
@@ -68,6 +76,8 @@ const typeDefs = /* GraphQL */ `
     myStudents: [User]
     classRooms: [ClassRoom]
     subjects: [Subject]
+    adminDashboardStats: AdminStats
+  allSchoolData: School
   }
 
   type Mutation {
@@ -89,7 +99,10 @@ const schema = createSchema<GraphQLContext>({
 
       mySchool: async (_, __, { db, currentUser }) => {
         if (!currentUser?.schoolId) return null;
-        return await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, currentUser.schoolId)).get();
+        const school = await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, currentUser.schoolId)).get();
+        if (!school) return null;
+        return school;
+
       },
 
       myTeachers: async (_, __, { db, currentUser }) => {
@@ -112,6 +125,40 @@ const schema = createSchema<GraphQLContext>({
         if (!currentUser?.schoolId) throw new Error("Unauthorized");
         return await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
       },
+      adminDashboardStats: async (_, __, { db, currentUser }) => {
+        if (!currentUser || currentUser.role !== 'admin') throw new Error("Unauthorized");
+
+        const students = await db.select().from(dbSchema.user)
+          .where(and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'student')))
+          .all();
+
+        const teachers = await db.select().from(dbSchema.user)
+          .where(and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'teacher')))
+          .all();
+
+        const classes = await db.select().from(dbSchema.classRoom)
+          .where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId))
+          .all();
+
+        return {
+          totalStudents: students.length,
+          totalTeachers: teachers.length,
+          totalClassRooms: classes.length
+        };
+      },
+      // داخل Query resolver:
+      allSchoolData: async (_, __, { db, currentUser }) => {
+        if (!currentUser || currentUser.role !== 'admin') throw new Error("Unauthorized");
+
+        if (!currentUser.schoolId) return null;
+
+        const school = await db.select().from(dbSchema.school)
+          .where(eq(dbSchema.school.id, currentUser.schoolId))
+          .get();
+
+        // إذا لم يجد مدرسة، نرجع null بدلاً من كائن فارغ يسبب خطأ الـ ID
+        return school || null;
+      },
     },
 
     Mutation: {
@@ -132,7 +179,7 @@ const schema = createSchema<GraphQLContext>({
 
       createSchool: async (_, args, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'admin') throw new Error("Admin only");
-        const result = await db.insert(dbSchema.school).values({...args, adminId: currentUser.id}).returning();
+        const result = await db.insert(dbSchema.school).values({ ...args, adminId: currentUser.id }).returning();
         return result[0];
       },
 
@@ -142,7 +189,7 @@ const schema = createSchema<GraphQLContext>({
         const result = await db.insert(dbSchema.user).values({
           ...args,
           password: hashedPassword,
-          schoolId: currentUser.schoolId 
+          schoolId: currentUser.schoolId
         }).returning();
         return result[0];
       },
