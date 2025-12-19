@@ -31,6 +31,17 @@ const typeDefs = /* GraphQL */ `
     createdAt: String!
     class: ClassRoom
     subjectsTaught: [Subject]
+    grades: [StudentGrade]
+  }
+
+  type StudentGrade {
+    id: ID!
+    studentId: Int!
+    subjectId: Int!
+    classId: Int!
+    score: Int!
+    subject: Subject
+    student: User
   }
 
   type AuthPayload {
@@ -51,6 +62,7 @@ const typeDefs = /* GraphQL */ `
     classId: Int
     teacher: User
     class: ClassRoom
+    grades: [StudentGrade]
   }
 
   type ClassRoom {
@@ -62,12 +74,10 @@ const typeDefs = /* GraphQL */ `
   }
 
   type AdminStats {
-  totalStudents: Int
-  totalTeachers: Int
-  totalClassRooms: Int
-}
-
-
+    totalStudents: Int
+    totalTeachers: Int
+    totalClassRooms: Int
+  }
 
   type Query {
     me: User
@@ -77,7 +87,9 @@ const typeDefs = /* GraphQL */ `
     classRooms: [ClassRoom]
     subjects: [Subject]
     adminDashboardStats: AdminStats
-  allSchoolData: School
+    allSchoolData: School
+    studentGrades(studentId: Int!): [StudentGrade]
+    subjectGrades(subjectId: Int!): [StudentGrade]
   }
 
   type Mutation {
@@ -86,7 +98,7 @@ const typeDefs = /* GraphQL */ `
     createSchool(name: String!): School
     createClassRoom(name: String!): ClassRoom
     createSubject(name: String!, classId: Int!, teacherId: Int!): Subject
-    assignStudentToClass(studentId: Int!, classId: Int!): User
+    addGrade(studentId: Int!, subjectId: Int!, score: Int!): StudentGrade
   }
 `;
 
@@ -99,10 +111,7 @@ const schema = createSchema<GraphQLContext>({
 
       mySchool: async (_, __, { db, currentUser }) => {
         if (!currentUser?.schoolId) return null;
-        const school = await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, currentUser.schoolId)).get();
-        if (!school) return null;
-        return school;
-
+        return await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, currentUser.schoolId)).get() || null;
       },
 
       myTeachers: async (_, __, { db, currentUser }) => {
@@ -114,72 +123,61 @@ const schema = createSchema<GraphQLContext>({
 
       myStudents: async (_, __, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'admin') throw new Error("Unauthorized");
-        const students = await db.select().from(dbSchema.user).where(
+        return await db.select().from(dbSchema.user).where(
           and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'student'))
         ).all();
-
-        return students;
       },
 
       classRooms: async (_, __, { db, currentUser }) => {
         if (!currentUser?.schoolId) throw new Error("Unauthorized");
         return await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
       },
+
       adminDashboardStats: async (_, __, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'admin') throw new Error("Unauthorized");
-
-        const students = await db.select().from(dbSchema.user)
-          .where(and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'student')))
-          .all();
-
-        const teachers = await db.select().from(dbSchema.user)
-          .where(and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'teacher')))
-          .all();
-
-        const classes = await db.select().from(dbSchema.classRoom)
-          .where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId))
-          .all();
+        const users = await db.select().from(dbSchema.user).where(eq(dbSchema.user.schoolId, currentUser.schoolId)).all();
+        const classes = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
 
         return {
-          totalStudents: students.length,
-          totalTeachers: teachers.length,
+          totalStudents: users.filter(u => u.role === 'student').length,
+          totalTeachers: users.filter(u => u.role === 'teacher').length,
           totalClassRooms: classes.length
         };
       },
-      // داخل Query resolver:
       allSchoolData: async (_, __, { db, currentUser }) => {
-        if (!currentUser || currentUser.role !== 'admin') throw new Error("Unauthorized");
+        if (!currentUser?.schoolId || currentUser.role !== 'admin') throw new Error("Unauthorized");
+        return await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, currentUser.schoolId)).get() || null;
+      },
 
-        if (!currentUser.schoolId) return null;
-
-        const school = await db.select().from(dbSchema.school)
-          .where(eq(dbSchema.school.id, currentUser.schoolId))
-          .get();
-
-        // إذا لم يجد مدرسة، نرجع null بدلاً من كائن فارغ يسبب خطأ الـ ID
-        return school || null;
+      studentGrades: async (_, { studentId }, { db, currentUser }) => {
+        if (!currentUser) throw new Error("Unauthorized");
+        const student = await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, studentId)).get();
+        if (!student || student.schoolId !== currentUser.schoolId) throw new Error("Student not found in your school");
+        return await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, studentId)).all();
+      },
+      subjectGrades: async (_, { subjectId }, { db, currentUser }) => {
+        if (!currentUser) throw new Error("Unauthorized");
+        const grades = await db.select()
+          .from(dbSchema.studentGrades)
+          .where(eq(dbSchema.studentGrades.subjectId, subjectId))
+          .all();
+        return grades;
       },
     },
 
     Mutation: {
       login: async (_, { email, password }, { db, env }) => {
         const user = await db.select().from(dbSchema.user).where(eq(dbSchema.user.email, email)).get();
-        console.log("Input Password:", password);
-        console.log("DB Hash:", user?.password);
-        if (!user || !(await bcrypt.compare(password, user?.password))) {
+        if (!user || !(await bcrypt.compare(password, user.password))) {
           throw new Error("Invalid credentials");
         }
-        const token = await sign({
-          id: user.id,
-          role: user.role,
-          schoolId: user.schoolId
-        }, env.JWT_SECRET);
+        const token = await sign({ id: user.id, role: user.role, schoolId: user.schoolId }, env.JWT_SECRET);
         return { user, token };
       },
 
-      createSchool: async (_, args, { db, currentUser }) => {
+      createSchool: async (_, { name }, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'admin') throw new Error("Admin only");
-        const result = await db.insert(dbSchema.school).values({ ...args, adminId: currentUser.id }).returning();
+        const result = await db.insert(dbSchema.school).values({ name, adminId: currentUser.id }).returning();
         return result[0];
       },
 
@@ -194,13 +192,9 @@ const schema = createSchema<GraphQLContext>({
         return result[0];
       },
 
-
       createClassRoom: async (_, { name }, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'admin') throw new Error("Unauthorized");
-        const result = await db.insert(dbSchema.classRoom).values({
-          name,
-          schoolId: currentUser.schoolId
-        }).returning();
+        const result = await db.insert(dbSchema.classRoom).values({ name, schoolId: currentUser.schoolId }).returning();
         return result[0];
       },
 
@@ -208,34 +202,48 @@ const schema = createSchema<GraphQLContext>({
         if (!currentUser || currentUser.role !== 'admin') throw new Error("Unauthorized");
         const result = await db.insert(dbSchema.subject).values(args).returning();
         return result[0];
-      }
+      },
+
+      addGrade: async (_, args, { db, currentUser }) => {
+        if (!currentUser || currentUser.role !== 'admin') throw new Error("Only admin can add grades currently");
+        const student = await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, args.studentId)).get();
+        if (!student || student.schoolId !== currentUser.schoolId) throw new Error("Student not found in your school");
+
+        const result = await db.insert(dbSchema.studentGrades).values({
+          studentId: args.studentId,
+          subjectId: args.subjectId,
+          classId: student.classId!,
+          score: args.score,
+        }).returning();
+        return result[0];
+      },
     },
 
     User: {
-      class: async (parent, _, { db }) => {
-        if (!parent.classId) return null;
-        return await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, parent.classId)).get();
-      },
-      subjectsTaught: async (parent, _, { db }) => {
-        return await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.teacherId, parent.id)).all();
-      },
+      class: async (p, _, { db }) => p.classId ? await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, p.classId)).get() : null,
+      subjectsTaught: async (p, _, { db }) => await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.teacherId, p.id)).all(),
+      grades: async (p, _, { db }) => await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, p.id)).all(),
     },
     School: {
-      admin: async (parent, _, { db }) => await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, parent.adminId)).get(),
-      classRooms: async (parent, _, { db }) => await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, parent.id)).all(),
+      admin: async (p, _, { db }) => await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.adminId)).get(),
+      classRooms: async (p, _, { db }) => await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, p.id)).all(),
     },
     ClassRoom: {
-      subjects: async (parent, _, { db }) => await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.classId, parent.id)).all(),
-      students: async (parent, _, { db }) => await db.select().from(dbSchema.user).where(eq(dbSchema.user.classId, parent.id)).all(),
+      subjects: async (p, _, { db }) => await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.classId, p.id)).all(),
+      students: async (p, _, { db }) => await db.select().from(dbSchema.user).where(eq(dbSchema.user.classId, p.id)).all(),
     },
     Subject: {
-      teacher: async (parent, _, { db }) => await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, parent.teacherId)).get(),
-      class: async (parent, _, { db }) => await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, parent.classId)).get(),
+      teacher: async (p, _, { db }) => p.teacherId ? await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.teacherId)).get() : null,
+      class: async (p, _, { db }) => p.classId ? await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, p.classId)).get() : null,
+      grades: async (p, _, { db }) => await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.subjectId, p.id)).all(),
+    },
+    StudentGrade: {
+      subject: async (p, _, { db }) => await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, p.subjectId)).get(),
+      student: async (p, _, { db }) => await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.studentId)).get(),
     }
   }
 });
 
-// --- 4. Hono & Yoga Integration ---
 const yoga = createYoga<GraphQLContext>({ schema, graphqlEndpoint: '/graphql' })
 
 app.all('/graphql', async (c) => {
@@ -244,9 +252,8 @@ app.all('/graphql', async (c) => {
   let currentUser = null;
 
   if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.split(" ")[1];
     try {
-      const payload = await verify(token, c.env.JWT_SECRET);
+      const payload = await verify(authHeader.split(" ")[1], c.env.JWT_SECRET);
       currentUser = await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, Number(payload.id))).get();
     } catch (e) { console.error("JWT Error"); }
   }
