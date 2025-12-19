@@ -1,296 +1,180 @@
-# School Management API
+# 🎓 School Management API
 
-## 1. Project Overview
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Hono](https://img.shields.io/badge/Hono-E36002?style=for-the-badge&logo=hono&logoColor=white)](https://hono.dev/)
+[![GraphQL](https://img.shields.io/badge/GraphQL-E10098?style=for-the-badge&logo=graphql&logoColor=white)](https://graphql.org/)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)](https://orm.drizzle.team/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-This is a robust and high-performance **School Management System API** built with modern web technologies. It allows for the comprehensive management of educational structures, including schools, classrooms, subjects, teachers, students, and grades.
-
-### Technology Stack
-*   **Framework:** [Hono](https://hono.dev/) - A small, fast, and ultrafast web framework for the Edges.
-*   **Database:** [Cloudflare D1](https://developers.cloudflare.com/d1/) - Serverless SQL database.
-*   **ORM:** [Drizzle ORM](https://orm.drizzle.team/) - Lightweight and type-safe TypeScript ORM.
-*   **Language:** [TypeScript](https://www.typescriptlang.org/) - Typed superset of JavaScript.
-*   **Authentication:** JWT (JSON Web Tokens) & bcryptjs for secure password hashing.
-*   **Deployment:** Cloudflare Workers.
+> A modern, high-performance GraphQL API for managing schools, classrooms, teachers, students, and grades. Built for the Edge with Cloudflare Workers and D1 Database.
 
 ---
 
-## 2. Architecture Design
+## 🚀 Overview
 
-The database schema is designed to support a multi-tenant-like structure where **Admins** manage **Schools**, and **Schools** contain **ClassRooms**. **Subjects** are linked to **ClassRooms** via **Teachers**. **Students** are enrolled in **ClassRooms** and receive **Grades**.
+The **School Management API** is a robust backend solution designed to handle the complex data relationships of an educational institution. Leveraging the power of **GraphQL Yoga** and **Hono**, it provides a flexible and type-safe interface for clients. The data persistence layer is powered by **Cloudflare D1** (SQLite) accessed via **Drizzle ORM**, ensuring simplified query building and efficient migrations.
 
-```mermaid
-erDiagram
-    %% ---------------------------------------------------------
-    %% Authentication & Users
-    %% ---------------------------------------------------------
-    USERS {
-        int id PK
-        string userName
-        string email
-        string password
-        string role "student, teacher, admin"
-        datetime createdAt
-    }
+## ✨ Features
 
-    %% ---------------------------------------------------------
-    %% Academic Structure
-    %% ---------------------------------------------------------
-    SCHOOLS {
-        int id PK
-        string name
-        int adminId FK
-        datetime createdAt
-    }
+- **🔐 Authentication & Authorization**: Secure JWT-based authentication with role-based access control (Admin, Teacher, Student).
+- **🏫 School Management**: Create and manage schools, assigning admins to oversee operations.
+- **👩‍🏫 Class & Subject Management**: Organize classrooms and assign subjects with dedicated teachers.
+- **👥 User Roles**: distinct workflows for Admins (management), Teachers (subjects), and Students (learning).
+- **📝 Grading System**: Record and track student performance across different subjects.
+- **📊 Admin Dashboard**: Quick statistics on total students, teachers, and classrooms.
+- **⚡ Edge Deployment**: Deployed globally on Cloudflare's network for low-latency access.
 
-    CLASSROOMS {
-        int id PK
-        string name
-        int schoolId FK
-        datetime createdAt
-    }
+## 🛠️ Tech Stack
 
-    SUBJECTS {
-        int id PK
-        string name
-        datetime createdAt
-    }
+- **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/)
+- **Framework**: [Hono](https://hono.dev/)
+- **API Spec**: [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server)
+- **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite)
+- **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Package Manager**: NPM
 
-    classSubjects {
-        int classRoomId PK, FK
-        int subjectId PK, FK
-        int teacherId FK
-    }
+## 🏁 Getting Started
 
-    %% ---------------------------------------------------------
-    %% Enrollment & Performance
-    %% ---------------------------------------------------------
-    ENROLLMENTS {
-        int studentId PK, FK
-        int classRoomId PK, FK
-        datetime createdAt
-    }
-
-    studentGrades {
-        int id PK
-        int studentId FK
-        int classRoomId FK
-        int subjectId FK
-        int score
-        string type "assignment, midterm, final"
-        datetime dateRecorded
-    }
-
-    %% ---------------------------------------------------------
-    %% Relationships
-    %% ---------------------------------------------------------
-
-    USERS ||--o{ SCHOOLS : "manages (Admin)"
-    USERS ||--o{ ENROLLMENTS : "is enrolled (Student)"
-    USERS ||--o{ classSubjects : "teaches (Teacher)"
-    USERS ||--o{ studentGrades : "receives (Student)"
-
-    SCHOOLS ||--o{ CLASSROOMS : "has"
-
-    CLASSROOMS ||--o{ classSubjects : "offers"
-    SUBJECTS ||--o{ classSubjects : "is taught in"
-    CLASSROOMS ||--o{ ENROLLMENTS : "contains"
-
-    CLASSROOMS ||--o{ studentGrades : "recorded in"
-    SUBJECTS ||--o{ studentGrades : "evaluated in"
-```
-
----
-
-## 3. API Documentation
-
-Authentication uses **Bearer Token**. Most management routes require the user to have the `admin` role.
-
-### A. Client/Admin Interface
-
-These endpoints are used for day-to-day operations of the school management system.
-
-#### **Users & Authentication**
-
-| Method | Route | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/users/signup` | Public | Register a new user (`student`, `teacher`, `admin`). |
-| `POST` | `/users/login` | Public | Login and retrieve a JWT token. |
-| `DELETE` | `/users/delete/:id` | **Admin** | Delete a user (cannot delete Admins). |
-| `GET` | `/users/admin/profile` | **Auth** | Get current logged-in user profile. |
-| `GET` | `/users/admin/teachers` | **Admin** | Get all teachers in schools managed by the admin. |
-| `GET` | `/users/admin/teacher/:id` | **Admin** | Get a specific teacher's details. |
-| `GET` | `/users/admin/students/:classRoomId` | **Admin** | Get all students in a specific class. |
-| `GET` | `/users/admin/student/:id` | **Admin** | Get a specific student's details including grades. |
-
-#### **Schools**
-
-| Method | Route | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/schools` | **Admin** | Create a new school. |
-| `GET` | `/schools` | Public | Get all schools. |
-| `DELETE` | `/schools/:id` | **Admin** | Delete a school. |
-
-#### **Classes**
-
-| Method | Route | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/classes` | **Admin** | Create a class in a school. |
-| `GET` | `/classes` | **Admin** | Get all classes managed by the admin. |
-| `GET` | `/classes/:id` | **Admin** | Get detailed info for a single class. |
-| `DELETE` | `/classes/delete/:id` | **Admin** | Delete a class. |
-
-#### **Subjects**
-
-| Method | Route | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/subjects` | **Admin** | Create a global subject. |
-| `GET` | `/subjects/admin/:classId` | **Admin** | Get subjects taught in a specific class. |
-| `DELETE` | `/subjects/:id` | **Admin** | Delete a subject. |
-
-#### **Connections & Enrollments**
-
-| Method | Route | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/connections/connect` | **Admin** | Assign a Teacher and Subject to a Class. |
-| `DELETE` | `/connections/disconnect` | **Admin** | Remove a Teacher/Subject link from a Class. |
-| `GET` | `/connections/all` | **Auth** | List all Class-Subject-Teacher connections. |
-| `POST` | `/enrollments/enroll` | **Admin** | Enroll a Student in a Class. |
-| `GET` | `/enrollments/all` | **Admin** | List all enrollments. |
-
-#### **Grades**
-
-| Method | Route | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/grades` | **Admin** | Record a grade for a student. |
-| `GET` | `/grades` | Public | List all grades. |
-| `PUT` | `/grades/:id` | **Admin** | Update an existing grade. |
-| `DELETE` | `/grades/:id` | **Admin** | Delete a grade record. |
-
-### B. Developer/System Interface
-
-These endpoints are for debugging, system verification, and data populating.
-
-| Method | Route | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/seed` | Public | **Reset and Seed** the database with realistic fake data. |
-| `GET` | `/dev/classes` | **Dev** | Get raw dump of all classes. |
-| `GET` | `/dev/users` | **Dev** | Get raw dump of all users. |
-| `GET` | `/dev/users/students` | **Dev** | Get raw dump of all students. |
-| `GET` | `/dev/users/teachers` | **Dev** | Get raw dump of all teachers. |
-| `GET` | `/dev/users/admin` | **Dev** | Get raw dump of all admins. |
-
----
-
-## 4. Endpoint Details (Examples)
-
-### **Login**
-*   **Route:** `POST /users/login`
-*   **Input:**
-    ```json
-    {
-      "email": "admin@example.com",
-      "password": "hashed_password"
-    }
-    ```
-*   **Success (200):**
-    ```json
-    {
-      "user": { "id": 1, "userName": "Admin", "role": "admin", ... },
-      "token": "eyJhbGciOiJIUzI1NiJ9..."
-    }
-    ```
-
-### **Create Class**
-*   **Route:** `POST /classes`
-*   **Auth:** Admin Token
-*   **Input:**
-    ```json
-    {
-      "name": "Class 1A",
-      "schoolId": 1
-    }
-    ```
-*   **Success (201):**
-    ```json
-    {
-      "id": 10,
-      "name": "Class 1A",
-      "schoolId": 1,
-      "createdAt": "..."
-    }
-    ```
-*   **Error (404):** `{"error": "School not found"}`
-
-### **Assign Teacher to Subject in Class**
-*   **Route:** `POST /connections/connect`
-*   **Auth:** Admin Token
-*   **Input:**
-    ```json
-    {
-      "classRoomId": 10,
-      "subjectId": 5,
-      "teacherId": 2
-    }
-    ```
-
----
-
-## 5. Interactive Testing
-
-You can easily test the API using the provided `data.http` file with the **REST Client** extension for VS Code.
-
-1.  **Open `data.http`**.
-2.  **Seed the Database:** Send the `POST {{baseUrl}}/seed` request first to populate data.
-3.  **Login:** Send the `POST /users/login` request to get a token.
-4.  **Update Variable:** Copy the token from the response and update the `@adminToken` variable at the top of the file.
-5.  **Run Requests:** Click "Send Request" above any endpoint to test it.
-
-Example `curl` for verification:
-```bash
-curl -X GET http://localhost:8787/schools
-```
-
----
-
-## 6. Setup & Installation
+Follow these steps to set up the project locally.
 
 ### Prerequisites
-*   Node.js (v18+)
-*   npm
 
-### Installation Steps
+- [Node.js](https://nodejs.org/) (v16.13.0 or later)
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) (`npm install -g wrangler`)
 
-1.  **Clone the Repository**
+### Installation
+
+1.  **Clone the repository**
     ```bash
-    git clone https://github.com/your-repo/school-management-api.git
+    git clone https://github.com/your-username/school-management-api.git
     cd school-management-api
     ```
 
-2.  **Install Dependencies**
+2.  **Install dependencies**
     ```bash
     npm install
     ```
 
 3.  **Configure Environment**
-    Create a `.dev.vars` file in the root directory:
+    Create a `.dev.vars` file in the root directory and add your secret:
     ```env
-    JWT_SECRET="your_super_secret_key"
+    JWT_SECRET=your_super_secret_key
     ```
 
-4.  **Database Migration (Local)**
+4.  **Database Setup**
     Initialize the local D1 database:
+
+    *Generate migrations:*
     ```bash
-    npx wrangler d1 migrations execute myAppD1 --local
+    npm run db:generate
     ```
 
-5.  **Run Development Server**
+    *Apply migrations to local database:*
     ```bash
-    npm run dev
+    npx wrangler d1 execute myAppD1 --local --file=./drizzle/[timestamp]_init.sql
+    # Or use the convenience script if configured (e.g., npm run db:migrate)
+    npm run db:migrate
     ```
-    The server will start at `http://localhost:8787`.
 
-6.  **Seed Data**
-    Post to `/seed` to populate your local database:
+    *Seed initial data:*
     ```bash
-    curl -X POST http://localhost:8787/seed
+    npm run db:seed
     ```
+
+### 🏃‍♂️ Running Locally
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Visit the GraphQL Playground at `http://localhost:8787/graphql`.
+
+## 📦 Database Commands
+
+- **Generate Migrations**: `npm run db:generate`
+- **Push Schema**: `npm run db:push`
+- **Open Studio**: `npm run db:studio` (View your local DB data in a UI)
+
+## 🔍 GraphQL Examples
+
+Here are some common operations you can perform in the Playground:
+
+### 1. Login (Get Token)
+```graphql
+mutation {
+  login(email: "admin@example.com", password: "password123") {
+    token
+    user {
+      id
+      userName
+      role
+    }
+  }
+}
+```
+
+> **Note**: Copy the `token` from the response and add it to the HTTP Headers for protected routes:
+> `{ "Authorization": "Bearer <YOUR_TOKEN>" }`
+
+### 2. Get Current User Profile
+```graphql
+query {
+  me {
+    id
+    userName
+    email
+    role
+    schoolId
+  }
+}
+```
+
+### 3. Create a New School (Admin)
+```graphql
+mutation {
+  createSchool(name: "Springfield Elementary") {
+    id
+    name
+    admin {
+      userName
+    }
+  }
+}
+```
+
+### 4. Fetch Dashboard Stats
+```graphql
+query {
+  adminDashboardStats {
+    totalStudents
+    totalTeachers
+    totalClassRooms
+  }
+}
+```
+
+## 📂 Project Structure
+
+```
+├── drizzle/            # Database migrations
+├── src/
+│   ├── db/
+│   │   ├── schema.ts   # Drizzle table definitions
+│   │   └── seed.ts     # Data seeding script
+│   ├── index.ts        # Main application entry & GraphQL setup
+│   └── ...
+├── drizzle.config.ts   # Drizzle configuration
+├── package.json        # Dependencies & scripts
+└── wrangler.jsonc      # Cloudflare Workers configuration
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
