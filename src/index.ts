@@ -98,6 +98,7 @@ const typeDefs = /* GraphQL */ `
   }
 
   type Mutation {
+    signup(email: String!, password: String!, userName: String!): User!
     login(email: String!, password: String!): AuthPayload!
     createUser(userName: String!, email: String!, role: String!, password: String!, classId: Int): User
     createSchool(name: String!): School
@@ -238,6 +239,21 @@ const schema = createSchema<GraphQLContext>({
     },
 
     Mutation: {
+      signup: async (_, { email, password, userName }, { db }) => {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await db.select().from(dbSchema.user).where(eq(dbSchema.user.email, email)).get();
+        if (user) throw new Error("User already exists");
+        const result = await db.insert(dbSchema.user).values({
+          email,
+          userName,
+          password: hashedPassword,
+          role: 'admin',
+          schoolId: null,
+          classId: null,
+          createdAt: new Date().toISOString(),
+        }).returning();
+        return result[0];
+      },
       login: async (_, { email, password }, { db, env }) => {
         const user = await db.select().from(dbSchema.user).where(eq(dbSchema.user.email, email)).get();
         if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -246,14 +262,7 @@ const schema = createSchema<GraphQLContext>({
         const token = await sign({ id: user.id, role: user.role, schoolId: user.schoolId }, env.JWT_SECRET);
         return { user, token };
       },
-
-      createSchool: async (_, { name }, { db, currentUser }) => {
-        if (!currentUser || currentUser.role !== 'admin') throw new Error("Admin only");
-        const result = await db.insert(dbSchema.school).values({ name, adminId: currentUser.id }).returning();
-        return result[0];
-      },
-
-      createUser: async (_, args, { db, currentUser }) => {
+       createUser: async (_, args, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'admin') throw new Error("Admin only");
         const hashedPassword = await bcrypt.hash(args.password, 10);
         const result = await db.insert(dbSchema.user).values({
@@ -263,7 +272,12 @@ const schema = createSchema<GraphQLContext>({
         }).returning();
         return result[0];
       },
-
+      createSchool: async (_, { name }, { db, currentUser }) => {
+        if (!currentUser || currentUser.role !== 'admin') throw new Error("Admin only");
+        const result = await db.insert(dbSchema.school).values({ name, adminId: currentUser.id }).returning();
+        currentUser.schoolId = result[0].id;
+        return result[0];
+      },
       createClassRoom: async (_, { name }, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'admin') throw new Error("Unauthorized");
         const result = await db.insert(dbSchema.classRoom).values({ name, schoolId: currentUser.schoolId }).returning();
