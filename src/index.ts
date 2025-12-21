@@ -1,3 +1,4 @@
+import { GraphQLError } from "graphql";
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -31,7 +32,7 @@ type GraphQLContext = {
 // --- Helper: Auth & Permissions ---
 const ensureAdmin = (currentUser: any) => {
   if (!currentUser || currentUser.role !== 'admin' || !currentUser.schoolId) {
-    throw new Error("Unauthorized: Admin access required with a linked school.");
+    throw new GraphQLError("Unauthorized: Admin access required with a linked school.", { extensions: { code: "UNAUTHORIZED" } });
   }
 };
 
@@ -78,6 +79,7 @@ const typeDefs = /* GraphQL */ `
     classId: Int
     teacher: User
     class: ClassRoom
+    grades: [StudentGrade]
   }
 
   type ClassRoom {
@@ -306,6 +308,7 @@ const schema = createSchema<GraphQLContext>({
     Subject: {
       teacher: async (p, _, { db }) => p.teacherId ? db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.teacherId)).get() : null,
       class: async (p, _, { db }) => p.classId ? db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, p.classId)).get() : null,
+      grades: async (p, _, { db }) => db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.subjectId, p.id)).all(),
     },
     StudentGrade: {
       subject: async (p, _, { db }) => db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, p.subjectId)).get(),
@@ -316,7 +319,7 @@ const schema = createSchema<GraphQLContext>({
 
 const yoga = createYoga<GraphQLContext>({
   schema,
-  graphqlEndpoint: '/graphql',
+  graphqlEndpoint: '/graphql', maskedErrors: false,
   cors: {
     origin: ['http://localhost:3000', 'https://955c9608.school-mangemt-system-client.pages.dev'],
     methods: ['POST'],
