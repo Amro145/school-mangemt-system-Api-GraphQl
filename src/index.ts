@@ -39,7 +39,7 @@ const app = new Hono<{ Bindings: Env }>()
 
 const typeDefs = /* GraphQL */ `
   type User {
-    id: ID!
+    id: Int!
     userName: String!
     email: String!
     role: String!
@@ -52,7 +52,7 @@ const typeDefs = /* GraphQL */ `
   }
 
   type StudentGrade {
-    id: ID!
+    id: Int!
     studentId: Int!
     subjectId: Int!
     score: Int!
@@ -66,14 +66,14 @@ const typeDefs = /* GraphQL */ `
   }
 
   type School {
-    id: ID!
+    id: Int!
     name: String!
     admin: User
     classRooms: [ClassRoom]
   }
 
   type Subject {
-    id: ID!
+    id: Int!
     name: String!
     classId: Int
     teacher: User
@@ -81,7 +81,7 @@ const typeDefs = /* GraphQL */ `
   }
 
   type ClassRoom {
-    id: ID!
+    id: Int!
     name: String!
     schoolId: Int
     subjects: [Subject]
@@ -190,12 +190,15 @@ const schema = createSchema<GraphQLContext>({
         ).get();
         if (!student) throw new Error("Access Denied: Student not in your school");
 
-        return await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, studentId)).all();
+        const studentIdNumber = Number(studentId);
+        return await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, studentIdNumber)).all();
       },
 
-      getSchoolFullDetails: async (_, { schoolId , currentUser }, { db }) => {
+      getSchoolFullDetails: async (_, { schoolId }, { db, currentUser }) => {
         ensureAdmin(currentUser);
-        const school = await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, currentUser?.schoolId)).get();
+        if(!schoolId) throw new Error("School id is required");
+        else if(Number(schoolId) !== Number(currentUser.schoolId)) throw new Error("Access Denied: School not in your school");
+        const school = await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, schoolId)).get();
         if (!school) throw new Error("School not found");
         return school;
       },
