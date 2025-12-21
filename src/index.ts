@@ -193,8 +193,9 @@ const schema = createSchema<GraphQLContext>({
         return await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, studentId)).all();
       },
 
-      getSchoolFullDetails: async (_, { schoolId }, { db }) => {
-        const school = await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, schoolId)).get();
+      getSchoolFullDetails: async (_, { schoolId , currentUser }, { db }) => {
+        ensureAdmin(currentUser);
+        const school = await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, currentUser?.schoolId)).get();
         if (!school) throw new Error("School not found");
         return school;
       },
