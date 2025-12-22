@@ -35,6 +35,18 @@ const ensureAdmin = (currentUser: any) => {
     throw new GraphQLError("Unauthorized: Admin access required with a linked school.", { extensions: { code: "UNAUTHORIZED" } });
   }
 };
+const ensureTeacherOrAdmin = (currentUser : any) => {
+  if (!currentUser) {
+    throw new GraphQLError("Unauthorized: Admin access required with a linked school.", { extensions: { code: "UNAUTHORIZED" } });
+  }
+
+  const allowedRoles = ['admin', 'teacher'];
+  if (!allowedRoles.includes(currentUser.role)) {
+    throw new GraphQLError("Unauthorized: Admin access required with a linked school.", { extensions: { code: "UNAUTHORIZED" } });
+  }
+
+  return true;
+};
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -95,6 +107,10 @@ const typeDefs = /* GraphQL */ `
     totalTeachers: Int
     totalClassRooms: Int
   }
+  input GradeUpdateInput {
+  id: ID!
+  score: Int!
+}
 
   type Query {
     me: User
@@ -123,8 +139,10 @@ const typeDefs = /* GraphQL */ `
     deleteUser(id: Int!): User
     deleteClassRoom(id: Int!): ClassRoom
     deleteSubject(id: Int!): Subject
+    updateBulkGrades(grades: [GradeUpdateInput!]!): [Grade!]!
   }
 `;
+
 
 const schema = createSchema<GraphQLContext>({
   typeDefs,
@@ -336,7 +354,7 @@ const schema = createSchema<GraphQLContext>({
         }).returning();
         return result[0];
       },
-      deleteUser: async (_, {id}, { db, currentUser }) => {
+      deleteUser: async (_, { id }, { db, currentUser }) => {
         ensureAdmin(currentUser);
         const userToDelete = await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, id)).get();
         if (!userToDelete) throw new Error("User not found");
@@ -344,7 +362,7 @@ const schema = createSchema<GraphQLContext>({
         const result = await db.delete(dbSchema.user).where(eq(dbSchema.user.id, id)).returning();
         return result[0];
       },
-      deleteClassRoom: async (_, {id}, { db, currentUser }) => {
+      deleteClassRoom: async (_, { id }, { db, currentUser }) => {
         ensureAdmin(currentUser);
         const classRoom = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, id)).get();
         if (!classRoom) throw new Error("ClassRoom not found");
@@ -352,7 +370,7 @@ const schema = createSchema<GraphQLContext>({
         const result = await db.delete(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, id)).returning();
         return result[0];
       },
-      deleteSubject: async (_, {id}, { db, currentUser }) => {
+      deleteSubject: async (_, { id }, { db, currentUser }) => {
         ensureAdmin(currentUser);
         const subject = await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, id)).get();
         const myClassRooms = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
@@ -361,6 +379,23 @@ const schema = createSchema<GraphQLContext>({
         const result = await db.delete(dbSchema.subject).where(eq(dbSchema.subject.id, id)).returning();
         return result[0];
       },
+      updateBulkGrades: async (_, { grades }, { db, currentUser }) => {
+        // 1. التأكد من صلاحيات المستخدم (يجب أن يكون المعلم هو صاحب المادة أو آدمن)
+        ensureTeacherOrAdmin(currentUser);
+
+        // 2. تنفيذ عمليات التحديث بالتوازي لسرعة الأداء
+        const updatePromises = grades.map(grade =>
+          db.update(dbSchema.grades)
+            .set({ score: grade.score })
+            .where(eq(dbSchema.grades.id, parseInt(grade.id)))
+            .returning()
+        );
+
+        const results = await Promise.all(updatePromises);
+
+        // 3. إعادة النتائج بعد التحديث
+        return results.map(r => r[0]);
+      }
     },
 
     // --- Field Resolvers ---
