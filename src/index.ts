@@ -134,7 +134,7 @@ const typeDefs = /* GraphQL */ `
     login(email: String!, password: String!): AuthPayload!
     createUser(userName: String!, email: String!, role: String!, password: String!, classId: Int): User
     createSchool(name: String!): School
-    createClassRoom(name: String!): ClassRoom
+    createClassRoom(name: String!, schoolId: Int): ClassRoom
     createSubject(name: String!, classId: Int!, teacherId: Int!): Subject
     addGrade(studentId: Int!, subjectId: Int!, score: Int!): StudentGrade
     deleteUser(id: Int!): User
@@ -304,19 +304,21 @@ const schema = createSchema<GraphQLContext>({
         ensureAdmin(currentUser);
         const data = createUserSchema.parse(args);
         const hashedPassword = await bcrypt.hash(data.password, 10);
+        const { id, ...insertData } = data as any;
 
-        return await db.transaction(async (tx) => {
-          const result = await tx.insert(dbSchema.user).values({
-            ...data,
+        try {
+          // 1. Create the user record
+          const result = await db.insert(dbSchema.user).values({
+            ...insertData,
             password: hashedPassword,
             schoolId: currentUser.schoolId
           }).returning();
 
           const newUser = result[0];
 
-          // Logic for auto-initializing grades if the user is a student
+          // 2. Logic for auto-initializing grades if the user is a student
           if (newUser.role === 'student' && newUser.classId) {
-            const subjects = await tx.select()
+            const subjects = await db.select()
               .from(dbSchema.subject)
               .where(eq(dbSchema.subject.classId, newUser.classId))
               .all();
@@ -329,12 +331,17 @@ const schema = createSchema<GraphQLContext>({
                 score: 0
               }));
 
-              await tx.insert(dbSchema.studentGrades).values(gradeRecords);
+              // Bulk insert grades for the new student
+              await db.insert(dbSchema.studentGrades).values(gradeRecords);
             }
           }
 
           return newUser;
-        });
+        } catch (error: any) {
+          // Log detailed error for Ubuntu debugging
+          console.error("CRITICAL DATABASE FAULT during createUser:", error.message || error);
+          throw new Error(`Identity creation failed: ${error.message || 'Database lock or constraint violation'}`);
+        }
       },
       createAdmin: async (_, args, { db }) => {
         const data = createAdminSchema.parse(args);
@@ -360,7 +367,7 @@ const schema = createSchema<GraphQLContext>({
         const data = createClassRoomSchema.parse(args);
         const result = await db.insert(dbSchema.classRoom).values({
           name: data.name,
-          schoolId: currentUser.schoolId
+          schoolId: data.schoolId || currentUser.schoolId
         }).returning();
         return result[0];
       },

@@ -13,6 +13,7 @@ export const createSchoolSchema = z.object({
 
 export const createClassRoomSchema = z.object({
   name: z.string().min(1),
+  schoolId: z.number().optional(),
 });
 
 export const createUserSchema = z.object({
