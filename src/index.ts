@@ -120,6 +120,9 @@ const typeDefs = /* GraphQL */ `
     createClassRoom(name: String!): ClassRoom
     createSubject(name: String!, classId: Int!, teacherId: Int!): Subject
     addGrade(studentId: Int!, subjectId: Int!, score: Int!): StudentGrade
+    deleteUser(id: Int!): User
+    deleteClassRoom(id: Int!): ClassRoom
+    deleteSubject(id: Int!): Subject
   }
 `;
 
@@ -331,6 +334,31 @@ const schema = createSchema<GraphQLContext>({
           ...data,
           classId: student.classId! // safe bang because student checks usually imply valid data, but logic says classId required for student here
         }).returning();
+        return result[0];
+      },
+      deleteUser: async (_, id, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const userToDelete = await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, id)).get();
+        if (!userToDelete) throw new Error("User not found");
+        if (userToDelete.role === 'admin') throw new Error("Access Denied: User not in your school");
+        const result = await db.delete(dbSchema.user).where(eq(dbSchema.user.id, id)).returning();
+        return result[0];
+      },
+      deleteClassRoom: async (_, id, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const classRoom = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, id)).get();
+        if (!classRoom) throw new Error("ClassRoom not found");
+        if (classRoom.schoolId !== currentUser.schoolId) throw new Error("Access Denied: ClassRoom not in your school");
+        const result = await db.delete(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, id)).returning();
+        return result[0];
+      },
+      deleteSubject: async (_, id, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const subject = await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, id)).get();
+        const myClassRooms = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
+        if (!subject) throw new Error("Subject not found");
+        if (!myClassRooms.some(classRoom => classRoom.id === subject.classId)) throw new Error("Access Denied: Subject not in your school");
+        const result = await db.delete(dbSchema.subject).where(eq(dbSchema.subject.id, id)).returning();
         return result[0];
       },
     },
