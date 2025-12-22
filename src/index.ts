@@ -105,6 +105,7 @@ const typeDefs = /* GraphQL */ `
     student(id: Int!): User
     classRooms: [ClassRoom]
     subjects: [Subject]
+    subject(id: Int!): Subject
     adminDashboardStats: AdminStats
     studentGrades(studentId: Int!): [StudentGrade]
     getSchoolFullDetails(schoolId: Int!): School
@@ -172,6 +173,10 @@ const schema = createSchema<GraphQLContext>({
           .innerJoin(dbSchema.classRoom, eq(dbSchema.subject.classId, dbSchema.classRoom.id))
           .where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId))
           .all().then(rows => rows.map(r => r.subject));
+      },
+      subject: async (_, { id }, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        return await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, id)).get();
       },
 
       adminDashboardStats: async (_, __, { db, currentUser }) => {
@@ -321,7 +326,7 @@ const yoga = createYoga<GraphQLContext>({
   schema,
   graphqlEndpoint: '/graphql', maskedErrors: false,
   cors: {
-    origin: ['http://localhost:3000', 'https://main.school-management-frontend-66i.pages.dev'],
+    origin: ['http://localhost:8787', 'https://main.school-management-frontend-66i.pages.dev'],
     methods: ['POST'],
     credentials: true,
   },
