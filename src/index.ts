@@ -321,7 +321,7 @@ const yoga = createYoga<GraphQLContext>({
   schema,
   graphqlEndpoint: '/graphql', maskedErrors: false,
   cors: {
-    origin: ['http://localhost:3000', 'https://955c9608.school-mangemt-system-client.pages.dev'],
+    origin: ['http://localhost:3000', 'https://main.school-management-frontend-66i.pages.dev'],
     methods: ['POST'],
     credentials: true,
   },
