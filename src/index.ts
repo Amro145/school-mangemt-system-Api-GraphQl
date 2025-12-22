@@ -1,6 +1,6 @@
 import { GraphQLError } from "graphql";
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, like, or, count } from 'drizzle-orm';
 import { Hono } from 'hono';
 import * as dbSchema from './db/schema';
 import bcrypt from 'bcryptjs';
@@ -101,7 +101,8 @@ const typeDefs = /* GraphQL */ `
     mySchool: School
     myTeachers: [User]
     teacher(id: Int!): User
-    myStudents: [User]
+    myStudents(limit: Int, offset: Int, search: String): [User]
+    totalStudentsCount: Int
     student(id: Int!): User
     classRooms: [ClassRoom]
     subjects: [Subject]
@@ -147,11 +148,38 @@ const schema = createSchema<GraphQLContext>({
         ).get();
       },
 
-      myStudents: async (_, __, { db, currentUser }) => {
+      myStudents: async (_, { limit, offset, search }, { db, currentUser }) => {
         ensureAdmin(currentUser);
-        return await db.select().from(dbSchema.user).where(
-          and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'student'))
-        ).all();
+        let query = db.select().from(dbSchema.user).where(
+          and(
+            eq(dbSchema.user.schoolId, currentUser.schoolId),
+            eq(dbSchema.user.role, 'student'),
+            search ? or(
+              like(dbSchema.user.userName, `%${search}%`),
+              like(dbSchema.user.email, `%${search}%`)
+            ) : undefined
+          )
+        ).$dynamic();
+
+        if (limit !== undefined) {
+          query = query.limit(limit);
+        }
+        if (offset !== undefined) {
+          query = query.offset(offset);
+        }
+
+        return await query.all();
+      },
+
+      totalStudentsCount: async (_, __, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const result = await db.select({ value: count() }).from(dbSchema.user).where(
+          and(
+            eq(dbSchema.user.schoolId, currentUser.schoolId),
+            eq(dbSchema.user.role, 'student')
+          )
+        ).get();
+        return result?.value ?? 0;
       },
 
       student: async (_, { id }, { db, currentUser }) => {
@@ -181,12 +209,23 @@ const schema = createSchema<GraphQLContext>({
 
       adminDashboardStats: async (_, __, { db, currentUser }) => {
         ensureAdmin(currentUser);
-        const users = await db.select().from(dbSchema.user).where(eq(dbSchema.user.schoolId, currentUser.schoolId)).all();
-        const classes = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
+
+        const [studentCountResult, teacherCountResult, classCountResult] = await Promise.all([
+          db.select({ value: count() }).from(dbSchema.user).where(
+            and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'student'))
+          ).get(),
+          db.select({ value: count() }).from(dbSchema.user).where(
+            and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'teacher'))
+          ).get(),
+          db.select({ value: count() }).from(dbSchema.classRoom).where(
+            eq(dbSchema.classRoom.schoolId, currentUser.schoolId)
+          ).get()
+        ]);
+
         return {
-          totalStudents: users.filter(u => u.role === 'student').length,
-          totalTeachers: users.filter(u => u.role === 'teacher').length,
-          totalClassRooms: classes.length
+          totalStudents: studentCountResult?.value ?? 0,
+          totalTeachers: teacherCountResult?.value ?? 0,
+          totalClassRooms: classCountResult?.value ?? 0
         };
       },
 
