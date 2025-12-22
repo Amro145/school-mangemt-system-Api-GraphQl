@@ -35,7 +35,7 @@ const ensureAdmin = (currentUser: any) => {
     throw new GraphQLError("Unauthorized: Admin access required with a linked school.", { extensions: { code: "UNAUTHORIZED" } });
   }
 };
-const ensureTeacherOrAdmin = (currentUser : any) => {
+const ensureTeacherOrAdmin = (currentUser: any) => {
   if (!currentUser) {
     throw new GraphQLError("Unauthorized: Admin access required with a linked school.", { extensions: { code: "UNAUTHORIZED" } });
   }
@@ -139,7 +139,7 @@ const typeDefs = /* GraphQL */ `
     deleteUser(id: Int!): User
     deleteClassRoom(id: Int!): ClassRoom
     deleteSubject(id: Int!): Subject
-    updateBulkGrades(grades: [GradeUpdateInput!]!): [Grade!]!
+    updateBulkGrades(grades: [GradeUpdateInput!]!): [StudentGrade!]!
   }
 `;
 
@@ -380,23 +380,39 @@ const schema = createSchema<GraphQLContext>({
         return result[0];
       },
       updateBulkGrades: async (_, { grades }, { db, currentUser }) => {
-        // 1. التأكد من صلاحيات المستخدم (يجب أن يكون المعلم هو صاحب المادة أو آدمن)
         ensureTeacherOrAdmin(currentUser);
 
-        // 2. تنفيذ عمليات التحديث بالتوازي لسرعة الأداء
-        const updatePromises = grades.map(grade =>
-          db.update(dbSchema.grades)
-            .set({ score: grade.score })
-            .where(eq(dbSchema.grades.id, parseInt(grade.id)))
-            .returning()
-        );
+        const updatedGrades = [];
+        for (const g of grades) {
+          const id = typeof g.id === 'string' ? parseInt(g.id) : g.id;
 
-        const results = await Promise.all(updatePromises);
+          // Check if the grade exists
+          const existing = await db.select()
+            .from(dbSchema.studentGrades)
+            .where(eq(dbSchema.studentGrades.id, id))
+            .get();
 
-        // 3. إعادة النتائج بعد التحديث
-        return results.map(r => r[0]);
-      }
+          if (!existing) {
+            throw new GraphQLError(`Grade record with ID ${id} not found.`, {
+              extensions: { code: 'NOT_FOUND' }
+            });
+          }
+
+          // Execute update
+          const result = await db.update(dbSchema.studentGrades)
+            .set({ score: g.score })
+            .where(eq(dbSchema.studentGrades.id, id))
+            .returning();
+
+          if (result && result.length > 0) {
+            updatedGrades.push(result[0]);
+          }
+        }
+
+        return updatedGrades;
+      },
     },
+
 
     // --- Field Resolvers ---
     User: {
