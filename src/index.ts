@@ -336,7 +336,7 @@ const schema = createSchema<GraphQLContext>({
         }).returning();
         return result[0];
       },
-      deleteUser: async (_, id, { db, currentUser }) => {
+      deleteUser: async (_, {id}, { db, currentUser }) => {
         ensureAdmin(currentUser);
         const userToDelete = await db.select().from(dbSchema.user).where(eq(dbSchema.user.id, id)).get();
         if (!userToDelete) throw new Error("User not found");
@@ -344,7 +344,7 @@ const schema = createSchema<GraphQLContext>({
         const result = await db.delete(dbSchema.user).where(eq(dbSchema.user.id, id)).returning();
         return result[0];
       },
-      deleteClassRoom: async (_, id, { db, currentUser }) => {
+      deleteClassRoom: async (_, {id}, { db, currentUser }) => {
         ensureAdmin(currentUser);
         const classRoom = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, id)).get();
         if (!classRoom) throw new Error("ClassRoom not found");
@@ -352,7 +352,7 @@ const schema = createSchema<GraphQLContext>({
         const result = await db.delete(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, id)).returning();
         return result[0];
       },
-      deleteSubject: async (_, id, { db, currentUser }) => {
+      deleteSubject: async (_, {id}, { db, currentUser }) => {
         ensureAdmin(currentUser);
         const subject = await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, id)).get();
         const myClassRooms = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
