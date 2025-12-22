@@ -140,6 +140,7 @@ const typeDefs = /* GraphQL */ `
     deleteClassRoom(id: Int!): ClassRoom
     deleteSubject(id: Int!): Subject
     updateBulkGrades(grades: [GradeUpdateInput!]!): [StudentGrade!]!
+    createAdmin(email: String!, password: String!, userName: String!): User!
   }
 `;
 
@@ -333,6 +334,15 @@ const schema = createSchema<GraphQLContext>({
 
           return newUser;
         });
+      },
+      createAdmin: async (_, args, { db }) => {
+        const data = createUserSchema.parse(args);
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+        return await db.insert(dbSchema.user).values({
+          ...data,
+          password: hashedPassword,
+          role: 'admin'
+        }).returning();
       },
 
       createSchool: async (_, args, { db, currentUser }) => {
