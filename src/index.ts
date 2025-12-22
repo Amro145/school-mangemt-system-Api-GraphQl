@@ -302,12 +302,37 @@ const schema = createSchema<GraphQLContext>({
         ensureAdmin(currentUser);
         const data = createUserSchema.parse(args);
         const hashedPassword = await bcrypt.hash(data.password, 10);
-        const result = await db.insert(dbSchema.user).values({
-          ...data,
-          password: hashedPassword,
-          schoolId: currentUser.schoolId
-        }).returning();
-        return result[0];
+
+        return await db.transaction(async (tx) => {
+          const result = await tx.insert(dbSchema.user).values({
+            ...data,
+            password: hashedPassword,
+            schoolId: currentUser.schoolId
+          }).returning();
+
+          const newUser = result[0];
+
+          // Logic for auto-initializing grades if the user is a student
+          if (newUser.role === 'student' && newUser.classId) {
+            const subjects = await tx.select()
+              .from(dbSchema.subject)
+              .where(eq(dbSchema.subject.classId, newUser.classId))
+              .all();
+
+            if (subjects.length > 0) {
+              const gradeRecords = subjects.map(subject => ({
+                studentId: newUser.id,
+                subjectId: subject.id,
+                classId: newUser.classId!,
+                score: 0
+              }));
+
+              await tx.insert(dbSchema.studentGrades).values(gradeRecords);
+            }
+          }
+
+          return newUser;
+        });
       },
 
       createSchool: async (_, args, { db, currentUser }) => {
