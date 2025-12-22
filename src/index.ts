@@ -339,11 +339,12 @@ const schema = createSchema<GraphQLContext>({
       createAdmin: async (_, args, { db }) => {
         const data = createAdminSchema.parse(args);
         const hashedPassword = await bcrypt.hash(data.password, 10);
+        const { id, ...insertData } = data as any;
         return await db.insert(dbSchema.user).values({
-          ...data,
+          ...insertData,
           password: hashedPassword,
           role: 'admin'
-        }).returning();
+        }).returning().get();
       },
 
       createSchool: async (_, args, { db, currentUser }) => {
