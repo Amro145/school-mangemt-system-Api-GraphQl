@@ -13,7 +13,8 @@ import {
   createClassRoomSchema,
   createUserSchema,
   createSubjectSchema,
-  addGradeSchema
+  addGradeSchema,
+  createAdminSchema
 } from './schemas';
 import { createLoaders, Loaders } from './loaders';
 
@@ -336,7 +337,7 @@ const schema = createSchema<GraphQLContext>({
         });
       },
       createAdmin: async (_, args, { db }) => {
-        const data = createUserSchema.parse(args);
+        const data = createAdminSchema.parse(args);
         const hashedPassword = await bcrypt.hash(data.password, 10);
         return await db.insert(dbSchema.user).values({
           ...data,
