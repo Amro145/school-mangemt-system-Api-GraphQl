@@ -6,7 +6,7 @@ import * as dbSchema from './db/schema';
 import bcrypt from 'bcryptjs';
 import { createSchema, createYoga } from 'graphql-yoga';
 import { sign, verify } from 'hono/jwt';
-import { z } from 'zod';
+import { cors } from 'hono/cors';
 import {
   signupSchema,
   createSchoolSchema,
@@ -198,8 +198,8 @@ const schema = createSchema<GraphQLContext>({
 
       getSchoolFullDetails: async (_, { schoolId }, { db, currentUser }) => {
         ensureAdmin(currentUser);
-        if(!schoolId) throw new Error("School id is required");
-        else if(Number(schoolId) !== Number(currentUser.schoolId)) throw new Error("Access Denied: School not in your school");
+        if (!schoolId) throw new Error("School id is required");
+        else if (Number(schoolId) !== Number(currentUser.schoolId)) throw new Error("Access Denied: School not in your school");
         const school = await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, schoolId)).get();
         if (!school) throw new Error("School not found");
         return school;
