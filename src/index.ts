@@ -95,6 +95,7 @@ const typeDefs = /* GraphQL */ `
     teacher: User
     class: ClassRoom
     grades: [StudentGrade]
+    successRate: Float
   }
 
   type ClassRoom {
@@ -209,7 +210,7 @@ const schema = createSchema<GraphQLContext>({
       },
 
       student: async (_, { id }, { db, currentUser }) => {
-        ensureAdmin(currentUser);
+        ensureTeacherOrAdmin(currentUser);
         return await db.select().from(dbSchema.user).where(
           and(eq(dbSchema.user.id, id), eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'student'))
         ).get();
@@ -229,7 +230,7 @@ const schema = createSchema<GraphQLContext>({
           .all().then(rows => rows.map(r => r.subject));
       },
       subject: async (_, { id }, { db, currentUser }) => {
-        ensureAdmin(currentUser);
+        ensureTeacherOrAdmin(currentUser);
         return await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, id)).get();
       },
 
@@ -507,6 +508,12 @@ const schema = createSchema<GraphQLContext>({
       teacher: async (p, _, { db }) => p.teacherId ? db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.teacherId)).get() : null,
       class: async (p, _, { db }) => p.classId ? db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, p.classId)).get() : null,
       grades: async (p, _, { db }) => db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.subjectId, p.id)).all(),
+      successRate: async (p, _, { db }) => {
+        const grades = await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.subjectId, p.id)).all();
+        if (grades.length === 0) return 0;
+        const passed = grades.filter(g => g.score >= 50).length;
+        return (passed / grades.length) * 100;
+      }
     },
     StudentGrade: {
       subject: async (p, _, { db }) => db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, p.subjectId)).get(),
