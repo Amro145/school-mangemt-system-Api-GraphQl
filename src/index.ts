@@ -63,6 +63,8 @@ const typeDefs = /* GraphQL */ `
     class: ClassRoom
     subjectsTaught: [Subject]
     grades: [StudentGrade]
+    averageScore: Float
+    successRate: Float
   }
 
   type StudentGrade {
@@ -127,6 +129,7 @@ const typeDefs = /* GraphQL */ `
     adminDashboardStats: AdminStats
     studentGrades(studentId: Int!): [StudentGrade]
     getSchoolFullDetails(schoolId: Int!): School
+    topStudents: [User]
   }
 
   type Mutation {
@@ -270,6 +273,23 @@ const schema = createSchema<GraphQLContext>({
         const school = await db.select().from(dbSchema.school).where(eq(dbSchema.school.id, schoolId)).get();
         if (!school) throw new Error("School not found");
         return school;
+      },
+      topStudents: async (_, __, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        // Find all students in the school
+        const students = await db.select().from(dbSchema.user).where(
+          and(eq(dbSchema.user.schoolId, currentUser.schoolId), eq(dbSchema.user.role, 'student'))
+        ).all();
+
+        // Calculate averages and sort
+        const studentsWithAverages = await Promise.all(students.map(async (student) => {
+          const grades = await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, student.id)).all();
+          if (grades.length === 0) return { ...student, avg: 0 };
+          const avg = grades.reduce((acc, g) => acc + g.score, 0) / grades.length;
+          return { ...student, avg };
+        }));
+
+        return studentsWithAverages.sort((a, b) => b.avg - a.avg).slice(0, 5);
       },
     },
 
@@ -463,6 +483,17 @@ const schema = createSchema<GraphQLContext>({
       class: async (p, _, { db }) => p.classId ? db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, p.classId)).get() : null,
       subjectsTaught: async (p, _, { db }) => db.select().from(dbSchema.subject).where(eq(dbSchema.subject.teacherId, p.id)).all(),
       grades: async (p, _, { db }) => db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, p.id)).all(),
+      averageScore: async (p, _, { db }) => {
+        const grades = await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, p.id)).all();
+        if (grades.length === 0) return 0;
+        return grades.reduce((acc, g) => acc + g.score, 0) / grades.length;
+      },
+      successRate: async (p, _, { db }) => {
+        const grades = await db.select().from(dbSchema.studentGrades).where(eq(dbSchema.studentGrades.studentId, p.id)).all();
+        if (grades.length === 0) return 0;
+        const passed = grades.filter(g => g.score >= 50).length;
+        return (passed / grades.length) * 100;
+      }
     },
     School: {
       admin: async (p, _, { db }) => db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.adminId)).get(),

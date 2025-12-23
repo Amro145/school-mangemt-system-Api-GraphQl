@@ -10,7 +10,7 @@ export const user = sqliteTable("user", {
     password: text("password", { length: 256 }).notNull(),
     role: text("role", { enum: userRoles }).notNull().default("student"),
     schoolId: integer("schoolId").references((): AnySQLiteColumn => school.id, { onDelete: "cascade" }),
-    classId: integer("classId").references((): AnySQLiteColumn => classRoom.id, { onDelete: "set null" }), // خاصة بالطلاب
+    classId: integer("classId").references((): AnySQLiteColumn => classRoom.id, { onDelete: "cascade" }), // خاصة بالطلاب
     createdAt: text("createdAt").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -41,7 +41,7 @@ export const studentGrades = sqliteTable("studentGrades", {
     id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
     studentId: integer("studentId").notNull().references(() => user.id, { onDelete: "cascade" }),
     subjectId: integer("subjectId").notNull().references(() => subject.id, { onDelete: "cascade" }),
-    classId: integer("classId").notNull().references(() => classRoom.id),
+    classId: integer("classId").notNull().references(() => classRoom.id, { onDelete: "cascade" }),
     score: integer("score").notNull(),
     dateRecorded: text("dateRecorded").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
