@@ -1,180 +1,185 @@
-# 🎓 School Management API
+# 🎓 Modern School Management System API
 
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
-[![Hono](https://img.shields.io/badge/Hono-E36002?style=for-the-badge&logo=hono&logoColor=white)](https://hono.dev/)
-[![GraphQL](https://img.shields.io/badge/GraphQL-E10098?style=for-the-badge&logo=graphql&logoColor=white)](https://graphql.org/)
-[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)](https://orm.drizzle.team/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+> A high-performance, edge-ready GraphQL API built with **Hono**, **GraphQL Yoga**, and **Cloudflare Workers**. Powered by **Drizzle ORM** and **Cloudflare D1**.
 
-> A modern, high-performance GraphQL API for managing schools, classrooms, teachers, students, and grades. Built for the Edge with Cloudflare Workers and D1 Database.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-Orange)
+![GraphQL Yoga](https://img.shields.io/badge/GraphQL_Yoga-Pink)
 
 ---
 
 ## 🚀 Overview
 
-The **School Management API** is a robust backend solution designed to handle the complex data relationships of an educational institution. Leveraging the power of **GraphQL Yoga** and **Hono**, it provides a flexible and type-safe interface for clients. The data persistence layer is powered by **Cloudflare D1** (SQLite) accessed via **Drizzle ORM**, ensuring simplified query building and efficient migrations.
+This project is the backend infrastructure for the **School Management System**, designed to run on the **Cloudflare Edge**. It provides a robust **GraphQL API** for managing schools, classrooms, students, teachers, and academic grades.
 
-## ✨ Features
+### ✨ Key Features
 
-- **🔐 Authentication & Authorization**: Secure JWT-based authentication with role-based access control (Admin, Teacher, Student).
-- **🏫 School Management**: Create and manage schools, assigning admins to oversee operations.
-- **👩‍🏫 Class & Subject Management**: Organize classrooms and assign subjects with dedicated teachers.
-- **👥 User Roles**: distinct workflows for Admins (management), Teachers (subjects), and Students (learning).
-- **📝 Grading System**: Record and track student performance across different subjects.
-- **📊 Admin Dashboard**: Quick statistics on total students, teachers, and classrooms.
-- **⚡ Edge Deployment**: Deployed globally on Cloudflare's network for low-latency access.
+*   **⚡ Edge-First Architecture**: Deployed on Cloudflare Workers for global low-latency access.
+*   **🔒 Secure Authentication**: JWT-based auth with Bcrypt password hashing.
+*   **🛡️ Role-Based Access Control (RBAC)**: Granular permissions for **Admins**, **Teachers**, and **Students**.
+*   **🗄️ Drizzle ORM + D1 SQLite**: Type-safe database interactions with Cloudflare's distributed database.
+*   **✅ Input Validation**: Zod-powered validation for all mutations.
+*   **🚀 N+1 Optimization**: Implements `DataLoader` for efficient nested fetching.
+*   **📂 Seeding Support**: Includes automated scripts for seeding complex relational data.
+
+---
 
 ## 🛠️ Tech Stack
 
-- **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/)
-- **Framework**: [Hono](https://hono.dev/)
-- **API Spec**: [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server)
-- **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite)
-- **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **Package Manager**: NPM
+*   **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/) (Serverless Edge)
+*   **Framework**: [Hono](https://hono.dev/) (Ultra-fast web framework)
+*   **API**: [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server)
+*   **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite)
+*   **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
+*   **Validation**: [Zod](https://zod.dev/)
+*   **Language**: [TypeScript](https://www.typescriptlang.org/)
+
+---
+
+## 📂 Project Structure
+
+```bash
+📦 school-management-api
+├── 📂 drizzle           # Database migrations & config
+├── 📂 src
+│   ├── 📂 db            # Schema definitions
+│   ├── 📂 graphql       # (Optional) Type definitions
+│   ├── 📜 index.ts      # Application entry point (Hono + Yoga)
+│   ├── 📜 loaders.ts    # DataLoaders for performance
+│   ├── 📜 schemas.ts    # Zod validation schemas
+│   └── 📜 seed.ts       # Database seeding logic
+├── 📜 wranger.jsonc     # Cloudflare deployment config
+├── 📜 seed.sql          # SQL Seed Data
+└── 📜 package.json      # Dependencies & Scripts
+```
+
+---
 
 ## 🏁 Getting Started
 
-Follow these steps to set up the project locally.
-
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v16.13.0 or later)
-- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) (`npm install -g wrangler`)
+*   **Node.js** (v20+ recommended)
+*   **Wrangler CLI**: `npm install -g wrangler`
 
-### Installation
+### 1. Clone & Install
 
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/your-username/school-management-api.git
-    cd school-management-api
-    ```
+```bash
+git clone https://github.com/your-username/school-management-api.git
+cd school-management-api
+npm install
+```
 
-2.  **Install dependencies**
-    ```bash
-    npm install
-    ```
+### 2. Configure Environment
 
-3.  **Configure Environment**
-    Create a `.dev.vars` file in the root directory and add your secret:
-    ```env
-    JWT_SECRET=your_super_secret_key
-    ```
+Ensure you have your Cloudflare account set up and authorized:
 
-4.  **Database Setup**
-    Initialize the local D1 database:
+```bash
+npx wrangler login
+```
 
-    *Generate migrations:*
-    ```bash
-    npm run db:generate
-    ```
+### 3. Database Setup (Local & Remote)
 
-    *Apply migrations to local database:*
-    ```bash
-    npx wrangler d1 execute myAppD1 --local --file=./drizzle/[timestamp]_init.sql
-    # Or use the convenience script if configured (e.g., npm run db:migrate)
-    npm run db:migrate
-    ```
+This project uses Cloudflare D1. You can run it locally or deploy to the edge.
 
-    *Seed initial data:*
-    ```bash
-    npm run db:seed
-    ```
+**Local Development:**
 
-### 🏃‍♂️ Running Locally
+```bash
+# Generate SQL migrations
+npm run db:generate
 
-Start the development server:
+# Apply migrations locally
+npm run db:migrate:local
+```
+
+### 4. Run Development Server
+
+Start the Hono/Yoga server locally:
 
 ```bash
 npm run dev
 ```
 
-Visit the GraphQL Playground at `http://localhost:8787/graphql`.
+Visit `http://localhost:8787/graphql` to access the **GraphiQL Playground**.
 
-## 📦 Database Commands
+---
 
-- **Generate Migrations**: `npm run db:generate`
-- **Push Schema**: `npm run db:push`
-- **Open Studio**: `npm run db:studio` (View your local DB data in a UI)
+## 🌱 Seeding the Database
 
-## 🔍 GraphQL Examples
+We provide robust scripts to populate your database with dummy data (Schools, Teachers, Students, Grades).
 
-Here are some common operations you can perform in the Playground:
+### Remote Seeding (Cloudflare D1)
 
-### 1. Login (Get Token)
+To seed your **production/remote** database:
+
+```bash
+npm run db:seed:remote
+```
+
+> **Note**: This executes `seed.sql`, creating 2 Schools, 4 Teachers, and 300+ Students with auto-generated grades.
+
+---
+
+## 🚀 Deployment
+
+Deploy the entire API to Cloudflare Workers with a single command:
+
+```bash
+npm run deploy
+```
+
+The output will provide your deployed URL (e.g., `https://school-management-api.your-subdomain.workers.dev`).
+
+---
+
+## 🔍 API Documentation
+
+The API exposes a GraphQL endpoint. Here are some common operations:
+
+### 🔐 Authentication
+
+**Mutation: Login**
+
 ```graphql
 mutation {
-  login(email: "admin@example.com", password: "password123") {
+  login(email: "admin1@school.edu", password: "password123") {
     token
     user {
       id
-      userName
       role
     }
   }
 }
 ```
 
-> **Note**: Copy the `token` from the response and add it to the HTTP Headers for protected routes:
-> `{ "Authorization": "Bearer <YOUR_TOKEN>" }`
+### 🏫 Queries
 
-### 2. Get Current User Profile
+**Query: Fetch Students (Paginated)**
+
 ```graphql
 query {
-  me {
+  myStudents(limit: 10, offset: 0) {
     id
     userName
-    email
-    role
-    schoolId
-  }
-}
-```
-
-### 3. Create a New School (Admin)
-```graphql
-mutation {
-  createSchool(name: "Springfield Elementary") {
-    id
-    name
-    admin {
-      userName
+    averageScore
+    class {
+      name
     }
   }
 }
 ```
 
-### 4. Fetch Dashboard Stats
-```graphql
-query {
-  adminDashboardStats {
-    totalStudents
-    totalTeachers
-    totalClassRooms
-  }
-}
-```
-
-## 📂 Project Structure
-
-```
-├── drizzle/            # Database migrations
-├── src/
-│   ├── db/
-│   │   ├── schema.ts   # Drizzle table definitions
-│   │   └── seed.ts     # Data seeding script
-│   ├── index.ts        # Main application entry & GraphQL setup
-│   └── ...
-├── drizzle.config.ts   # Drizzle configuration
-├── package.json        # Dependencies & scripts
-└── wrangler.jsonc      # Cloudflare Workers configuration
-```
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/amazing-feature`).
+3.  Commit your changes (`git commit -m 'Add amazing feature'`).
+4.  Push to the branch (`git push origin feature/amazing-feature`).
+5.  Open a Pull Request.
 
-## 📄 License
+---
 
-This project is licensed under the [MIT License](LICENSE).
+Made with ❤️ by the **EduDash Team**.
