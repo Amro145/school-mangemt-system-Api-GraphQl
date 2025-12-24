@@ -143,7 +143,7 @@ The API exposes a GraphQL endpoint. Here are some common operations:
 
 ```graphql
 mutation {
-  login(email: "admin1@school.edu", password: "password123") {
+  login(email: "admin1@school.edu", password: "amroamro") {
     token
     user {
       id
@@ -182,4 +182,4 @@ query {
 
 ---
 
-Made with ❤️ by the **EduDash Team**.
+Made with ❤️ by the **Amro Altayeb**.
