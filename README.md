@@ -56,6 +56,8 @@ src/
 
 ## 🔌 API Reference (GraphQL)
 
+
+
 ### Queries
 *   `me`: Get current user profile.
 *   `myStudents(limit: Int, offset: Int, search: String)`: Paginated student search.
