@@ -361,34 +361,35 @@ const schema = createSchema<GraphQLContext>({
 
         const hashedPassword = await bcrypt.hash(data.password, 10);
 
-        return await db.transaction(async (tx) => {
-          const result = await tx.insert(dbSchema.user).values({
-            userName: data.userName,
-            email: data.email,
-            role: data.role,
-            password: hashedPassword,
-            schoolId: currentUser.schoolId,
-            classId: data.classId || null,
-            createdAt: new Date().toISOString()
-          }).returning();
 
-          const newUser = result[0];
 
-          if (newUser.role === 'student' && newUser.classId) {
-            const subjects = await tx.select().from(dbSchema.subject).where(eq(dbSchema.subject.classId, newUser.classId)).all();
-            if (subjects.length > 0) {
-              await tx.insert(dbSchema.studentGrades).values(
-                subjects.map(s => ({
-                  studentId: newUser.id,
-                  subjectId: s.id,
-                  classId: newUser.classId!,
-                  score: 0
-                }))
-              );
-            }
+        // Transaction wrapper removed to debug "begin params" error
+        const result = await db.insert(dbSchema.user).values({
+          userName: data.userName,
+          email: data.email,
+          role: data.role,
+          password: hashedPassword,
+          schoolId: currentUser.schoolId,
+          classId: data.classId || null,
+          createdAt: new Date().toISOString()
+        }).returning();
+
+        const newUser = result[0];
+
+        if (newUser.role === 'student' && newUser.classId) {
+          const subjects = await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.classId, newUser.classId)).all();
+          if (subjects.length > 0) {
+            await db.insert(dbSchema.studentGrades).values(
+              subjects.map(s => ({
+                studentId: newUser.id,
+                subjectId: s.id,
+                classId: newUser.classId!,
+                score: 0
+              }))
+            );
           }
-          return newUser;
-        });
+        }
+        return newUser;
       },
 
       createClassRoom: async (_, args, { db, currentUser }) => {
