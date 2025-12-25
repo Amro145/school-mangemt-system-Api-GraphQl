@@ -388,7 +388,25 @@ const schema = createSchema<GraphQLContext>({
         if (existing) throw new GraphQLError("Subject already assigned to this classroom.");
 
         const result = await db.insert(dbSchema.subject).values(data).returning();
-        return result[0];
+        const newSubject = result[0];
+
+        // Initialize grades for all students in this class
+        const studentsInClass = await db.select().from(dbSchema.user).where(
+          and(eq(dbSchema.user.classId, data.classId), eq(dbSchema.user.role, 'student'))
+        ).all();
+
+        if (studentsInClass.length > 0) {
+          await db.insert(dbSchema.studentGrades).values(
+            studentsInClass.map(student => ({
+              studentId: student.id,
+              subjectId: newSubject.id,
+              classId: data.classId,
+              score: 0
+            }))
+          );
+        }
+
+        return newSubject;
       },
 
       addGrade: async (_, args, { db, currentUser }) => {

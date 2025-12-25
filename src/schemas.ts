@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { userRoles } from './db/schema';
 
+const userRoles = ['admin', 'teacher', 'student'] as const;
 export const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
