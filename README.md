@@ -1,185 +1,102 @@
-# 🎓 Modern School Management System API
+# 🌐 School Management System - Backend API
 
-> A high-performance, edge-ready GraphQL API built with **Hono**, **GraphQL Yoga**, and **Cloudflare Workers**. Powered by **Drizzle ORM** and **Cloudflare D1**.
+![Status](https://img.shields.io/badge/Status-Production%20Ready-green)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-orange)
+![Drizzle](https://img.shields.io/badge/ORM-Drizzle-yellow)
+![GraphQL](https://img.shields.io/badge/API-GraphQL-pink)
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
-![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-Orange)
-![GraphQL Yoga](https://img.shields.io/badge/GraphQL_Yoga-Pink)
-
----
-
-## 🚀 Overview
-
-This project is the backend infrastructure for the **School Management System**, designed to run on the **Cloudflare Edge**. It provides a robust **GraphQL API** for managing schools, classrooms, students, teachers, and academic grades.
-
-### ✨ Key Features
-
-*   **⚡ Edge-First Architecture**: Deployed on Cloudflare Workers for global low-latency access.
-*   **🔒 Secure Authentication**: JWT-based auth with Bcrypt password hashing.
-*   **🛡️ Role-Based Access Control (RBAC)**: Granular permissions for **Admins**, **Teachers**, and **Students**.
-*   **🗄️ Drizzle ORM + D1 SQLite**: Type-safe database interactions with Cloudflare's distributed database.
-*   **✅ Input Validation**: Zod-powered validation for all mutations.
-*   **🚀 N+1 Optimization**: Implements `DataLoader` for efficient nested fetching.
-*   **📂 Seeding Support**: Includes automated scripts for seeding complex relational data.
+The High-Performance API powering the EduDash platform. Built on the **Cloudflare Workers** edge runtime, it offers a globally distributed, low-latency GraphQL interface for managing schools, users, and academic records.
 
 ---
 
-## 🛠️ Tech Stack
+## ⚡ Architecture & Analysis
 
-*   **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/) (Serverless Edge)
-*   **Framework**: [Hono](https://hono.dev/) (Ultra-fast web framework)
-*   **API**: [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server)
-*   **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite)
-*   **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
-*   **Validation**: [Zod](https://zod.dev/)
-*   **Language**: [TypeScript](https://www.typescriptlang.org/)
+This backend eschews traditional containerized servers for a **Serverless Edge Architecture**.
+
+### 🏗️ Technical Stack
+
+*   **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/) - Javascript at the Edge.
+*   **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/) - Serverless SQLite distributed globally.
+*   **Web Framework**: [Hono](https://hono.dev/) - Ultra-fast web standard framework for edges.
+*   **API Spec**: [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server) - Fully compliant GraphQL 2.0 implementation.
+*   **ORM**: [Drizzle ORM](https://orm.drizzle.team/) - Type-safe SQL builder with zero runtime overhead.
+*   **Protection**:
+    *   **JWT Auth**: Stateless authentication using `hono/jwt`.
+    *   **Bcrypt**: Secure password hashing.
+    *   **Zod**: Strict runtime schema validation for mutations.
+    *   **DataLoaders**: Optimized batching to solve the N+1 query problem.
+
+### 🔍 Key Capabilities
+
+1.  **GraphQL Schema**: A rich, deeply nested schema allowing clients to fetch students, their classes, grades, and subject details in a single request.
+2.  **Role-Based Security**:
+    *   `ensureAdmin()`: middleware protecting sensitive administrative mutations.
+    *   `ensureTeacherOrAdmin()`: Middleware for grade management.
+    *   **Context Isolation**: Every request is scoped to `schoolId`, preventing data leaks between different schools (Multi-tenant design).
+3.  **Performance**:
+    *   **Dataloaders** for `classRooms`, `subjects`, and `students` ensure efficient relational data fetching.
+    *   **Edge Caching**: Static assets and queries can be cached close to the user.
 
 ---
 
 ## 📂 Project Structure
 
 ```bash
-📦 school-management-api
-├── 📂 drizzle           # Database migrations & config
-├── 📂 src
-│   ├── 📂 db            # Schema definitions
-│   ├── 📂 graphql       # (Optional) Type definitions
-│   ├── 📜 index.ts      # Application entry point (Hono + Yoga)
-│   ├── 📜 loaders.ts    # DataLoaders for performance
-│   ├── 📜 schemas.ts    # Zod validation schemas
-│   └── 📜 seed.ts       # Database seeding logic
-├── 📜 wranger.jsonc     # Cloudflare deployment config
-├── 📜 seed.sql          # SQL Seed Data
-└── 📜 package.json      # Dependencies & Scripts
+src/
+├── db/
+│   └── schema.ts       # D1/SQLite Database definitions (Users, Classes, Grades)
+├── utils/              # Helper functions
+├── index.ts            # Entry point, Hono app, and GraphQL Resolvers
+├── loaders.ts          # DataLoader definitions for batching
+├── schemas.ts          # Zod validation schemas for Input
+└── wrangler.jsonc      # Cloudflare Infrastructure config
 ```
 
 ---
 
-## 🏁 Getting Started
+## 🚀 Deployment & Development
 
 ### Prerequisites
+*   Node.js v18+
+*   [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
 
-*   **Node.js** (v20+ recommended)
-*   **Wrangler CLI**: `npm install -g wrangler`
+### Local Development
 
-### 1. Clone & Install
+1.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
 
-```bash
-git clone https://github.com/your-username/school-management-api.git
-cd school-management-api
-npm install
-```
+2.  **Run Locally (with D1 emulation)**:
+    ```bash
+    npm run dev
+    ```
+    API available at `http://localhost:8787/graphql`.
 
-### 2. Configure Environment
+3.  **Database Management**:
+    *   Generate Migrations: `npm run db:generate`
+    *   Apply Migrations (Local): `npm run db:migrate`
+    *   Seed Data (Local): `npm run db:seed`
 
-Ensure you have your Cloudflare account set up and authorized:
+### Production Deployment
 
-```bash
-npx wrangler login
-```
+1.  **Deploy to Cloudflare Workers**:
+    ```bash
+    npm run deploy
+    ```
 
-### 3. Database Setup (Local & Remote)
-
-This project uses Cloudflare D1. You can run it locally or deploy to the edge.
-
-**Local Development:**
-
-```bash
-# Generate SQL migrations
-npm run db:generate
-
-# Apply migrations locally
-npm run db:migrate:local
-```
-
-### 4. Run Development Server
-
-Start the Hono/Yoga server locally:
-
-```bash
-npm run dev
-```
-
-Visit `http://localhost:8787/graphql` to access the **GraphiQL Playground**.
+2.  **Production Database**:
+    *   Apply Migrations (Remote): `npm run db:migrate:prod` (check `package.json` for specific script aliases)
+    *   Seed Remote: `npm run seed:remote`
 
 ---
 
-## 🌱 Seeding the Database
+## 🔐 API Security
 
-We provide robust scripts to populate your database with dummy data (Schools, Teachers, Students, Grades).
-
-### Remote Seeding (Cloudflare D1)
-
-To seed your **production/remote** database:
-
-```bash
-npm run db:seed:remote
-```
-
-> **Note**: This executes `seed.sql`, creating 2 Schools, 4 Teachers, and 300+ Students with auto-generated grades.
+*   **Authentication**: Bearer Token required for most queries.
+*   **Authorization**: Resolvers check `currentUser.role` before execution.
+*   **Input Validation**: All mutation arguments are parsed via Zod to prevent injection and invalid states.
 
 ---
 
-## 🚀 Deployment
-
-Deploy the entire API to Cloudflare Workers with a single command:
-
-```bash
-npm run deploy
-```
-
-The output will provide your deployed URL (e.g., `https://school-management-api.your-subdomain.workers.dev`).
-
----
-
-## 🔍 API Documentation
-
-The API exposes a GraphQL endpoint. Here are some common operations:
-
-### 🔐 Authentication
-
-**Mutation: Login**
-
-```graphql
-mutation {
-  login(email: "admin1@school.edu", password: "amroamro") {
-    token
-    user {
-      id
-      role
-    }
-  }
-}
-```
-
-### 🏫 Queries
-
-**Query: Fetch Students (Paginated)**
-
-```graphql
-query {
-  myStudents(limit: 10, offset: 0) {
-    id
-    userName
-    averageScore
-    class {
-      name
-    }
-  }
-}
-```
-
----
-
-## 🤝 Contributing
-
-1.  Fork the repository.
-2.  Create a feature branch (`git checkout -b feature/amazing-feature`).
-3.  Commit your changes (`git commit -m 'Add amazing feature'`).
-4.  Push to the branch (`git push origin feature/amazing-feature`).
-5.  Open a Pull Request.
-
----
-
-Made with ❤️ by the **Amro Altayeb**.
+*Verified Analysis by Antigravity Agent.*
