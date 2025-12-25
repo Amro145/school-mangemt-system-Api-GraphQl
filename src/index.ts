@@ -333,20 +333,43 @@ const schema = createSchema<GraphQLContext>({
 
       createUser: async (_, args, { db, currentUser }) => {
         ensureAdmin(currentUser);
-        const data = createUserSchema.parse(args);
+        let data;
+        try {
+          data = createUserSchema.parse(args);
+        } catch (error: any) {
+          if (error.issues) {
+            const messages = error.issues.map((issue: any) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+            throw new GraphQLError(`Validation Error: ${messages}`);
+          }
+          throw new GraphQLError(`Validation Error: ${error.message}`);
+        }
 
-        // منع تكرار المستخدم
+        // Validate Class Existence for Students
+        if (data.role === 'student') {
+          // data.classId is guaranteed by Zod refinement
+          const classRoom = await db.select().from(dbSchema.classRoom).where(
+            and(eq(dbSchema.classRoom.id, data.classId!), eq(dbSchema.classRoom.schoolId, currentUser.schoolId))
+          ).get();
+          if (!classRoom) {
+            throw new GraphQLError("Invalid Class ID: Class not found in this school.");
+          }
+        }
+
+        // Prevent duplicate users
         const existingUser = await db.select().from(dbSchema.user).where(eq(dbSchema.user.email, data.email)).get();
         if (existingUser) throw new GraphQLError("Identity Conflict: Email already exists.");
 
         const hashedPassword = await bcrypt.hash(data.password, 10);
-        const { id, ...insertData } = data as any;
 
         return await db.transaction(async (tx) => {
           const result = await tx.insert(dbSchema.user).values({
-            ...insertData,
+            userName: data.userName,
+            email: data.email,
+            role: data.role,
             password: hashedPassword,
-            schoolId: currentUser.schoolId
+            schoolId: currentUser.schoolId,
+            classId: data.classId || null,
+            createdAt: new Date().toISOString()
           }).returning();
 
           const newUser = result[0];

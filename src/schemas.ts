@@ -17,11 +17,19 @@ export const createClassRoomSchema = z.object({
 });
 
 export const createUserSchema = z.object({
-  userName: z.string().min(2),
-  email: z.string().email(),
+  userName: z.string().min(2, "Username must be at least 2 characters"),
+  email: z.string().email("Invalid email format"),
   role: z.enum(userRoles),
-  password: z.string().min(6),
-  classId: z.number().optional(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  classId: z.number().optional().nullable(),
+}).refine((data) => {
+  if (data.role === 'student' && !data.classId) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Class ID is required and must be valid for students",
+  path: ["classId"],
 });
 
 export const createAdminSchema = z.object({
