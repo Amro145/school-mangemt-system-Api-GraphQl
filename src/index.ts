@@ -161,6 +161,7 @@ const typeDefs = /* GraphQL */ `
     totalStudentsCount: Int
     student(id: Int!): User
     classRooms: [ClassRoom]
+    classRoom(id: Int!): ClassRoom
     subjects: [Subject]
     subject(id: Int!): Subject
     schedules: [Schedule]
@@ -251,6 +252,10 @@ const schema = createSchema<GraphQLContext>({
       classRooms: async (_, __, { db, currentUser }) => {
         ensureAdmin(currentUser);
         return await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
+      },
+      classRoom: async (_, { id }, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        return await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, id)).get();
       },
 
       subjects: async (_, __, { db, currentUser }) => {
