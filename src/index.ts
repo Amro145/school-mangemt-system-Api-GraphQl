@@ -1,6 +1,7 @@
 import { GraphQLError } from "graphql";
+import depthLimit from 'graphql-depth-limit';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, and, like, or, count } from 'drizzle-orm';
+import { eq, and, like, or, count, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import * as dbSchema from './db/schema';
 import bcrypt from 'bcryptjs';
@@ -14,7 +15,8 @@ import {
   createUserSchema,
   createSubjectSchema,
   addGradeSchema,
-  createAdminSchema
+  createAdminSchema,
+  createScheduleSchema
 } from './schemas';
 import { createLoaders, Loaders } from './loaders';
 
@@ -51,6 +53,28 @@ const ensureTeacherOrAdmin = (currentUser: any) => {
 
 const app = new Hono<{ Bindings: Env }>()
 
+// Rate Limiting: 100 requests per 15 minutes
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+app.use('*', async (c, next) => {
+  const ip = c.req.header('cf-connecting-ip') || 'unknown';
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxRequests = 100;
+
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+  } else {
+    record.count++;
+    if (record.count > maxRequests) {
+      return c.json({ error: "Too Many Requests - Rate limit exceeded" }, 429);
+    }
+  }
+  await next();
+});
+
 const typeDefs = /* GraphQL */ `
   type User {
     id: Int!
@@ -65,6 +89,7 @@ const typeDefs = /* GraphQL */ `
     grades: [StudentGrade]
     averageScore: Float
     successRate: Float
+    schedules: [Schedule]
   }
 
   type StudentGrade {
@@ -104,6 +129,7 @@ const typeDefs = /* GraphQL */ `
     schoolId: Int
     subjects: [Subject]
     students: [User]
+    schedules: [Schedule]
   }
 
   type AdminStats {
@@ -111,10 +137,20 @@ const typeDefs = /* GraphQL */ `
     totalTeachers: Int
     totalClassRooms: Int
   }
+
+  type Schedule {
+    id: Int!
+    classId: Int!
+    subjectId: Int!
+    day: String!
+    startTime: String!
+    endTime: String!
+  }
   input GradeUpdateInput {
     id: ID!
     score: Int!
   }
+
 
   type Query {
     me: User
@@ -128,6 +164,7 @@ const typeDefs = /* GraphQL */ `
     classRoom(id: Int!): ClassRoom
     subjects: [Subject]
     subject(id: Int!): Subject
+    schedules: [Schedule]
     adminDashboardStats: AdminStats
     studentGrades(studentId: Int!): [StudentGrade]
     getSchoolFullDetails(schoolId: Int!): School
@@ -147,6 +184,9 @@ const typeDefs = /* GraphQL */ `
     deleteSubject(id: Int!): Subject
     updateBulkGrades(grades: [GradeUpdateInput!]!): [StudentGrade!]!
     createAdmin(email: String!, password: String!, userName: String!): User!
+    createSchedule(classId: Int!, subjectId: Int!, day: String!, startTime: String!, endTime: String!): Schedule
+    updateSchedule(id: Int!, classId: Int!, subjectId: Int!, day: String!, startTime: String!, endTime: String!): Schedule
+    deleteSchedule(id: Int!): Schedule
   }
 `;
 
@@ -213,12 +253,10 @@ const schema = createSchema<GraphQLContext>({
         ensureAdmin(currentUser);
         return await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
       },
+
       classRoom: async (_, { id }, { db, currentUser }) => {
         ensureAdmin(currentUser);
-        if (!id) throw new GraphQLError("ClassRoom ID is required.");
-        const classRoom = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, id)).get();
-        if (!classRoom) throw new GraphQLError("ClassRoom not found.");
-        return classRoom;
+        return await db.select().from(dbSchema.classRoom).where(and(eq(dbSchema.classRoom.id, id), eq(dbSchema.classRoom.schoolId, currentUser.schoolId))).get();
       },
 
       subjects: async (_, __, { db, currentUser }) => {
@@ -310,7 +348,6 @@ const schema = createSchema<GraphQLContext>({
 
       createAdmin: async (_, args, { db }) => {
         const data = createAdminSchema.parse(args);
-        // منع تكرار المدير
         const existing = await db.select().from(dbSchema.user).where(eq(dbSchema.user.email, data.email)).get();
         if (existing) throw new GraphQLError("Admin email already exists.");
 
@@ -333,29 +370,9 @@ const schema = createSchema<GraphQLContext>({
 
       createUser: async (_, args, { db, currentUser }) => {
         ensureAdmin(currentUser);
-        let data;
-        try {
-          data = createUserSchema.parse(args);
-        } catch (error: any) {
-          if (error.issues) {
-            const messages = error.issues.map((issue: any) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
-            throw new GraphQLError(`Validation Error: ${messages}`);
-          }
-          throw new GraphQLError(`Validation Error: ${error.message}`);
-        }
+        const data = createUserSchema.parse(args);
 
-        // Validate Class Existence for Students
-        if (data.role === 'student') {
-          // data.classId is guaranteed by Zod refinement
-          const classRoom = await db.select().from(dbSchema.classRoom).where(
-            and(eq(dbSchema.classRoom.id, data.classId!), eq(dbSchema.classRoom.schoolId, currentUser.schoolId))
-          ).get();
-          if (!classRoom) {
-            throw new GraphQLError("Invalid Class ID: Class not found in this school.");
-          }
-        }
-
-        // Prevent duplicate users
+        // منع تكرار المستخدم
         const existingUser = await db.select().from(dbSchema.user).where(eq(dbSchema.user.email, data.email)).get();
         if (existingUser) throw new GraphQLError("Identity Conflict: Email already exists.");
 
@@ -396,7 +413,6 @@ const schema = createSchema<GraphQLContext>({
         ensureAdmin(currentUser);
         const data = createClassRoomSchema.parse(args);
 
-        // منع تكرار الفصل في نفس المدرسة
         const existing = await db.select().from(dbSchema.classRoom).where(
           and(eq(dbSchema.classRoom.name, data.name), eq(dbSchema.classRoom.schoolId, currentUser.schoolId))
         ).get();
@@ -413,14 +429,31 @@ const schema = createSchema<GraphQLContext>({
         ensureAdmin(currentUser);
         const data = createSubjectSchema.parse(args);
 
-        // منع تكرار المادة في نفس الفصل
         const existing = await db.select().from(dbSchema.subject).where(
           and(eq(dbSchema.subject.name, data.name), eq(dbSchema.subject.classId, data.classId))
         ).get();
         if (existing) throw new GraphQLError("Subject already assigned to this classroom.");
 
         const result = await db.insert(dbSchema.subject).values(data).returning();
-        return result[0];
+        const newSubject = result[0];
+
+        // Initialize grades for all students in this class
+        const studentsInClass = await db.select().from(dbSchema.user).where(
+          and(eq(dbSchema.user.classId, data.classId), eq(dbSchema.user.role, 'student'))
+        ).all();
+
+        if (studentsInClass.length > 0) {
+          await db.insert(dbSchema.studentGrades).values(
+            studentsInClass.map(student => ({
+              studentId: student.id,
+              subjectId: newSubject.id,
+              classId: data.classId,
+              score: 0
+            }))
+          );
+        }
+
+        return newSubject;
       },
 
       addGrade: async (_, args, { db, currentUser }) => {
@@ -472,6 +505,31 @@ const schema = createSchema<GraphQLContext>({
         }
         return updatedGrades;
       },
+      createSchedule: async (_, args, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const classRoom = await db.select().from(dbSchema.classRoom).where(and(eq(dbSchema.classRoom.id, args.classId), eq(dbSchema.classRoom.schoolId, currentUser.schoolId))).get();
+        if (!classRoom) throw new GraphQLError("ClassRoom not found.");
+        const subject = await db.select().from(dbSchema.subject).where(and(eq(dbSchema.subject.id, args.subjectId), eq(dbSchema.subject.classId, classRoom.id))).get();
+        if (!subject) throw new GraphQLError("Subject not found.");
+        const data = createScheduleSchema.parse(args);
+        const result = await db.insert(dbSchema.schedule).values(data).returning();
+        return result[0];
+      },
+      updateSchedule: async (_, args, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const schedule = await db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.id, args.id)).get();
+        if (!schedule) throw new GraphQLError("Schedule not found.");
+        const data = createScheduleSchema.parse(args);
+        const result = await db.update(dbSchema.schedule).set(data).where(eq(dbSchema.schedule.id, args.id)).returning();
+        return result[0];
+      },
+      deleteSchedule: async (_, { id }, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const schedule = await db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.id, id)).get();
+        if (!schedule) throw new GraphQLError("Schedule not found.");
+        const result = await db.delete(dbSchema.schedule).where(eq(dbSchema.schedule.id, id)).returning();
+        return result[0];
+      },
     },
 
     User: {
@@ -487,7 +545,18 @@ const schema = createSchema<GraphQLContext>({
         if (grades.length === 0) return 0;
         const passed = grades.filter(g => g.score >= 50).length;
         return (passed / grades.length) * 100;
-      }
+      },
+      schedules: async (p, _, { db }) => {
+        if (p.role === 'student' && p.classId) {
+          return db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.classId, p.classId)).all();
+        } else if (p.role === 'teacher') {
+          const subjects = await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.teacherId, p.id)).all();
+          if (subjects.length === 0) return [];
+          const subjectIds = subjects.map(s => s.id);
+          return db.select().from(dbSchema.schedule).where(inArray(dbSchema.schedule.subjectId, subjectIds)).all();
+        }
+        return [];
+      },
     },
 
     School: {
@@ -498,6 +567,7 @@ const schema = createSchema<GraphQLContext>({
     ClassRoom: {
       subjects: async (p, _, { loaders }) => loaders.subjectsLoader.load(p.id),
       students: async (p, _, { loaders }) => loaders.studentsLoader.load(p.id),
+      schedules: async (p, _, { db }) => db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.classId, p.id)).all(),
     },
 
     Subject: {
@@ -521,10 +591,12 @@ const schema = createSchema<GraphQLContext>({
 
 const yoga = createYoga<GraphQLContext>({
   schema,
-  graphqlEndpoint: '/graphql', maskedErrors: false,
+  graphqlEndpoint: '/graphql',
+  maskedErrors: true, // In production, this masks non-GraphQLErrors with a generic message
+  validationRules: [depthLimit(5)], // Prevent deep recursive queries
   cors: {
-    origin: ['http://localhost:8787', 'https://main.school-management-frontend-66i.pages.dev'],
-    methods: ['POST'],
+    origin: ['https://main.school-management-frontend-66i.pages.dev'],
+    methods: ['POST', 'OPTIONS'],
     credentials: true,
   },
 });

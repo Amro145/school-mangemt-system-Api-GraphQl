@@ -22,6 +22,27 @@
       "when": 1766542455621,
       "tag": "0002_last_hardball",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1766789326480,
+      "tag": "0003_silky_wild_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1766789737530,
+      "tag": "0004_spicy_ogun",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1766789863029,
+      "tag": "0005_bouncy_stryfe",
+      "breakpoints": true
     }
   ]
 }
