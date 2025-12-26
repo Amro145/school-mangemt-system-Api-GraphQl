@@ -142,6 +142,8 @@ const typeDefs = /* GraphQL */ `
     id: Int!
     classId: Int!
     subjectId: Int!
+    subject: Subject
+    classRoom: ClassRoom
     day: String!
     startTime: String!
     endTime: String!
@@ -585,7 +587,12 @@ const schema = createSchema<GraphQLContext>({
     StudentGrade: {
       subject: async (p, _, { db }) => db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, p.subjectId)).get(),
       student: async (p, _, { db }) => db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.studentId)).get(),
-    }
+    },
+
+    Schedule: {
+      subject: async (p, _, { db }) => db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, p.subjectId)).get(),
+      classRoom: async (p, _, { db }) => db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, p.classId)).get(),
+    },
   }
 });
 
