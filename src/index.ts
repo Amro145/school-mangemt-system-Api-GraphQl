@@ -1,7 +1,7 @@
 import { GraphQLError } from "graphql";
 import depthLimit from 'graphql-depth-limit';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, and, like, or, count } from 'drizzle-orm';
+import { eq, and, like, or, count, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import * as dbSchema from './db/schema';
 import bcrypt from 'bcryptjs';
@@ -184,6 +184,7 @@ const typeDefs = /* GraphQL */ `
     updateBulkGrades(grades: [GradeUpdateInput!]!): [StudentGrade!]!
     createAdmin(email: String!, password: String!, userName: String!): User!
     createSchedule(classId: Int!, subjectId: Int!, day: String!, startTime: String!, endTime: String!): Schedule
+    updateSchedule(id: Int!, classId: Int!, subjectId: Int!, day: String!, startTime: String!, endTime: String!): Schedule
     deleteSchedule(id: Int!): Schedule
   }
 `;
@@ -503,6 +504,14 @@ const schema = createSchema<GraphQLContext>({
         const result = await db.insert(dbSchema.schedule).values(data).returning();
         return result[0];
       },
+      updateSchedule: async (_, args, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const schedule = await db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.id, args.id)).get();
+        if (!schedule) throw new GraphQLError("Schedule not found.");
+        const data = createScheduleSchema.parse(args);
+        const result = await db.update(dbSchema.schedule).set(data).where(eq(dbSchema.schedule.id, args.id)).returning();
+        return result[0];
+      },
       deleteSchedule: async (_, { id }, { db, currentUser }) => {
         ensureAdmin(currentUser);
         const schedule = await db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.id, id)).get();
@@ -526,7 +535,17 @@ const schema = createSchema<GraphQLContext>({
         const passed = grades.filter(g => g.score >= 50).length;
         return (passed / grades.length) * 100;
       },
-      schedules: async (p, _, { db }) => p.classId ? db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.classId, p.classId)).all() : [],
+      schedules: async (p, _, { db }) => {
+        if (p.role === 'student' && p.classId) {
+          return db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.classId, p.classId)).all();
+        } else if (p.role === 'teacher') {
+          const subjects = await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.teacherId, p.id)).all();
+          if (subjects.length === 0) return [];
+          const subjectIds = subjects.map(s => s.id);
+          return db.select().from(dbSchema.schedule).where(inArray(dbSchema.schedule.subjectId, subjectIds)).all();
+        }
+        return [];
+      },
     },
 
     School: {
