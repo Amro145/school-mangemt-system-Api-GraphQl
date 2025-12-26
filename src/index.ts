@@ -15,7 +15,8 @@ import {
   createUserSchema,
   createSubjectSchema,
   addGradeSchema,
-  createAdminSchema
+  createAdminSchema,
+  createScheduleSchema
 } from './schemas';
 import { createLoaders, Loaders } from './loaders';
 
@@ -88,6 +89,7 @@ const typeDefs = /* GraphQL */ `
     grades: [StudentGrade]
     averageScore: Float
     successRate: Float
+    schedules: [Schedule]
   }
 
   type StudentGrade {
@@ -127,6 +129,7 @@ const typeDefs = /* GraphQL */ `
     schoolId: Int
     subjects: [Subject]
     students: [User]
+    schedules: [Schedule]
   }
 
   type AdminStats {
@@ -134,10 +137,20 @@ const typeDefs = /* GraphQL */ `
     totalTeachers: Int
     totalClassRooms: Int
   }
+
+  type Schedule {
+    id: Int!
+    classId: Int!
+    subjectId: Int!
+    day: String!
+    startTime: String!
+    endTime: String!
+  }
   input GradeUpdateInput {
     id: ID!
     score: Int!
   }
+
 
   type Query {
     me: User
@@ -150,6 +163,7 @@ const typeDefs = /* GraphQL */ `
     classRooms: [ClassRoom]
     subjects: [Subject]
     subject(id: Int!): Subject
+    schedules: [Schedule]
     adminDashboardStats: AdminStats
     studentGrades(studentId: Int!): [StudentGrade]
     getSchoolFullDetails(schoolId: Int!): School
@@ -169,6 +183,8 @@ const typeDefs = /* GraphQL */ `
     deleteSubject(id: Int!): Subject
     updateBulkGrades(grades: [GradeUpdateInput!]!): [StudentGrade!]!
     createAdmin(email: String!, password: String!, userName: String!): User!
+    createSchedule(classId: Int!, subjectId: Int!, day: String!, startTime: String!, endTime: String!): Schedule
+    deleteSchedule(id: Int!): Schedule
   }
 `;
 
@@ -477,6 +493,23 @@ const schema = createSchema<GraphQLContext>({
         }
         return updatedGrades;
       },
+      createSchedule: async (_, args, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const classRoom = await db.select().from(dbSchema.classRoom).where(and(eq(dbSchema.classRoom.id, args.classId), eq(dbSchema.classRoom.schoolId, currentUser.schoolId))).get();
+        if (!classRoom) throw new GraphQLError("ClassRoom not found.");
+        const subject = await db.select().from(dbSchema.subject).where(and(eq(dbSchema.subject.id, args.subjectId), eq(dbSchema.subject.classId, classRoom.id))).get();
+        if (!subject) throw new GraphQLError("Subject not found.");
+        const data = createScheduleSchema.parse(args);
+        const result = await db.insert(dbSchema.schedule).values(data).returning();
+        return result[0];
+      },
+      deleteSchedule: async (_, { id }, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        const schedule = await db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.id, id)).get();
+        if (!schedule) throw new GraphQLError("Schedule not found.");
+        const result = await db.delete(dbSchema.schedule).where(eq(dbSchema.schedule.id, id)).returning();
+        return result[0];
+      },
     },
 
     User: {
@@ -492,7 +525,8 @@ const schema = createSchema<GraphQLContext>({
         if (grades.length === 0) return 0;
         const passed = grades.filter(g => g.score >= 50).length;
         return (passed / grades.length) * 100;
-      }
+      },
+      schedules: async (p, _, { db }) => p.classId ? db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.classId, p.classId)).all() : [],
     },
 
     School: {
@@ -503,6 +537,7 @@ const schema = createSchema<GraphQLContext>({
     ClassRoom: {
       subjects: async (p, _, { loaders }) => loaders.subjectsLoader.load(p.id),
       students: async (p, _, { loaders }) => loaders.studentsLoader.load(p.id),
+      schedules: async (p, _, { db }) => db.select().from(dbSchema.schedule).where(eq(dbSchema.schedule.classId, p.id)).all(),
     },
 
     Subject: {

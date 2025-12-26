@@ -22,6 +22,14 @@ export const classRoom = sqliteTable('classRoom', {
     name: text('name').notNull(),
     schoolId: integer('schoolId').references(() => school.id).notNull(),
 });
+export const schedule = sqliteTable('schedule', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    classId: integer('classId').references(() => classRoom.id, { onDelete: 'cascade' }).notNull(),
+    subjectId: integer('subjectId').references(() => subject.id, { onDelete: 'cascade' }).notNull(),
+    day: text('day').notNull(),
+    startTime: text('startTime').notNull(),
+    endTime: text('endTime').notNull(),
+});
 
 export const subject = sqliteTable('subject', {
     id: integer('id').primaryKey({ autoIncrement: true }),

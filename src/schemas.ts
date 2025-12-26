@@ -11,6 +11,7 @@ export const createSchoolSchema = z.object({
   name: z.string().min(3),
 });
 
+
 export const createClassRoomSchema = z.object({
   name: z.string().min(1),
   schoolId: z.number().optional(),
@@ -40,4 +41,11 @@ export const addGradeSchema = z.object({
   studentId: z.number(),
   subjectId: z.number(),
   score: z.number().min(0).max(100),
+});
+export const createScheduleSchema = z.object({
+  classId: z.number(),
+  subjectId: z.number(),
+  day: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
+  startTime: z.string(),
+  endTime: z.string(),
 });
