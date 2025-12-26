@@ -1,4 +1,5 @@
 import { GraphQLError } from "graphql";
+import depthLimit from 'graphql-depth-limit';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and, like, or, count } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -50,6 +51,28 @@ const ensureTeacherOrAdmin = (currentUser: any) => {
 };
 
 const app = new Hono<{ Bindings: Env }>()
+
+// Rate Limiting: 100 requests per 15 minutes
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+app.use('*', async (c, next) => {
+  const ip = c.req.header('cf-connecting-ip') || 'unknown';
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxRequests = 100;
+
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+  } else {
+    record.count++;
+    if (record.count > maxRequests) {
+      return c.json({ error: "Too Many Requests - Rate limit exceeded" }, 429);
+    }
+  }
+  await next();
+});
 
 const typeDefs = /* GraphQL */ `
   type User {
@@ -302,7 +325,6 @@ const schema = createSchema<GraphQLContext>({
 
       createAdmin: async (_, args, { db }) => {
         const data = createAdminSchema.parse(args);
-        // منع تكرار المدير
         const existing = await db.select().from(dbSchema.user).where(eq(dbSchema.user.email, data.email)).get();
         if (existing) throw new GraphQLError("Admin email already exists.");
 
@@ -327,7 +349,6 @@ const schema = createSchema<GraphQLContext>({
         ensureAdmin(currentUser);
         const data = createUserSchema.parse(args);
 
-        // منع تكرار المستخدم
         const existingUser = await db.select().from(dbSchema.user).where(eq(dbSchema.user.email, data.email)).get();
         if (existingUser) throw new GraphQLError("Identity Conflict: Email already exists.");
 
@@ -364,7 +385,6 @@ const schema = createSchema<GraphQLContext>({
         ensureAdmin(currentUser);
         const data = createClassRoomSchema.parse(args);
 
-        // منع تكرار الفصل في نفس المدرسة
         const existing = await db.select().from(dbSchema.classRoom).where(
           and(eq(dbSchema.classRoom.name, data.name), eq(dbSchema.classRoom.schoolId, currentUser.schoolId))
         ).get();
@@ -381,7 +401,6 @@ const schema = createSchema<GraphQLContext>({
         ensureAdmin(currentUser);
         const data = createSubjectSchema.parse(args);
 
-        // منع تكرار المادة في نفس الفصل
         const existing = await db.select().from(dbSchema.subject).where(
           and(eq(dbSchema.subject.name, data.name), eq(dbSchema.subject.classId, data.classId))
         ).get();
@@ -507,10 +526,12 @@ const schema = createSchema<GraphQLContext>({
 
 const yoga = createYoga<GraphQLContext>({
   schema,
-  graphqlEndpoint: '/graphql', maskedErrors: false,
+  graphqlEndpoint: '/graphql',
+  maskedErrors: true, // In production, this masks non-GraphQLErrors with a generic message
+  validationRules: [depthLimit(5)], // Prevent deep recursive queries
   cors: {
-    origin: ['http://localhost:8787', 'https://main.school-management-frontend-66i.pages.dev'],
-    methods: ['POST'],
+    origin: ['https://main.school-management-frontend-66i.pages.dev'],
+    methods: ['POST', 'OPTIONS'],
     credentials: true,
   },
 });
