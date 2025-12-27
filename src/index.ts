@@ -275,6 +275,11 @@ const schema = createSchema<GraphQLContext>({
         return await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, id)).get();
       },
 
+      schedules: async (_, __, { db, currentUser }) => {
+        ensureAdmin(currentUser);
+        return await db.select().from(dbSchema.schedule).innerJoin(dbSchema.classRoom, eq(dbSchema.schedule.classId, dbSchema.classRoom.id)).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all().then(rows => rows.map(r => r.schedule));
+      },
+
       adminDashboardStats: async (_, __, { db, currentUser }) => {
         ensureAdmin(currentUser);
         const [studentCountResult, teacherCountResult, classCountResult] = await Promise.all([
