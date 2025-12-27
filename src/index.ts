@@ -513,7 +513,47 @@ const schema = createSchema<GraphQLContext>({
         if (!classRoom) throw new GraphQLError("ClassRoom not found.");
         const subject = await db.select().from(dbSchema.subject).where(and(eq(dbSchema.subject.id, args.subjectId), eq(dbSchema.subject.classId, classRoom.id))).get();
         if (!subject) throw new GraphQLError("Subject not found.");
+
         const data = createScheduleSchema.parse(args);
+
+        // 1. Check for ClassRoom Conflict
+        const classSchedules = await db.select().from(dbSchema.schedule).where(
+          and(
+            eq(dbSchema.schedule.classId, classRoom.id),
+            eq(dbSchema.schedule.day, data.day)
+          )
+        ).all();
+
+        const isOverlapping = (start1: string, end1: string, start2: string, end2: string) => {
+          return start1 < end2 && end1 > start2;
+        };
+
+        const classConflict = classSchedules.find(s => isOverlapping(data.startTime, data.endTime, s.startTime, s.endTime));
+        if (classConflict) {
+          throw new GraphQLError(`Classroom conflict: This time slot overlaps with ${classConflict.startTime}-${classConflict.endTime}.`);
+        }
+
+        // 2. Check for Teacher Conflict
+        if (subject.teacherId) {
+          // Find all subjects taught by this teacher
+          const teacherSubjects = await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.teacherId, subject.teacherId)).all();
+          const teacherSubjectIds = teacherSubjects.map(s => s.id);
+
+          if (teacherSubjectIds.length > 0) {
+            const teacherSchedules = await db.select().from(dbSchema.schedule).where(
+              and(
+                inArray(dbSchema.schedule.subjectId, teacherSubjectIds),
+                eq(dbSchema.schedule.day, data.day)
+              )
+            ).all();
+
+            const teacherConflict = teacherSchedules.find(s => isOverlapping(data.startTime, data.endTime, s.startTime, s.endTime));
+            if (teacherConflict) {
+              throw new GraphQLError(`Teacher conflict: The assigned teacher is already teaching another class at ${teacherConflict.startTime}-${teacherConflict.endTime}.`);
+            }
+          }
+        }
+
         const result = await db.insert(dbSchema.schedule).values(data).returning();
         return result[0];
       },
