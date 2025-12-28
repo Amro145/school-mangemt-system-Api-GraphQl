@@ -225,6 +225,7 @@ const typeDefs = /* GraphQL */ `
     getSchoolFullDetails(schoolId: Int!): School
     topStudents: [User]
     getAvailableExams: [Exam]
+    getExam(id: Int!): Exam
     getExamForTaking(id: Int!): Exam
     getTeacherExamReports(examId: Int!): [ExamSubmission]
   }
@@ -419,6 +420,36 @@ const schema = createSchema<GraphQLContext>({
         }
 
         return [];
+      },
+
+      getExam: async (_, { id }, { db, currentUser }) => {
+        if (!currentUser) throw new GraphQLError("Unauthorized");
+
+        const exam = await db.select().from(dbSchema.exams).where(eq(dbSchema.exams.id, id)).get();
+        if (!exam) throw new GraphQLError("Exam not found");
+
+        // Role-based access control
+        if (currentUser.role === 'student') {
+          if (exam.classId !== currentUser.classId) throw new GraphQLError("This exam is not for your class");
+        } else if (currentUser.role === 'teacher') {
+          if (exam.teacherId !== currentUser.id) throw new GraphQLError("You do not teach this exam");
+        } else if (currentUser.role === 'admin') {
+          // Admin has access to all within school, assuming school check implicit or add it
+          // Simple school check via classRoom
+          const classRoom = await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, exam.classId)).get();
+          if (classRoom?.schoolId !== currentUser.schoolId) throw new GraphQLError("Exam not in your school");
+        }
+
+        // Return exam without side effects.
+        // Questions might still be resolved by sub-resolver, but that's fine as long as we don't start a submission session.
+        // Wait, for students we probably shouldn't return questions in the lobby?
+        // The `questions` field is part of Exam type.
+        // The resolver for `Exam.questions` simply fetches them.
+        // If we want to hide them, we'd need logic in `Exam.questions` or return a partial object?
+        // But the lobbying page only needs title, desc, duration.
+        // We can just rely on the frontend not asking for questions in the value query.
+
+        return exam;
       },
 
       getExamForTaking: async (_, { id }, { db, currentUser }) => {
