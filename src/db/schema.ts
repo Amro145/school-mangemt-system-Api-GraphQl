@@ -44,6 +44,7 @@ export const studentGrades = sqliteTable('studentGrades', {
     subjectId: integer('subjectId').references(() => subject.id).notNull(),
     classId: integer('classId').references(() => classRoom.id).notNull(),
     score: integer('score').notNull(),
+    type: text('type').notNull(),
 });
 
 export const exams = sqliteTable('exams', {
@@ -55,6 +56,7 @@ export const exams = sqliteTable('exams', {
     classId: integer('classId').references(() => classRoom.id, { onDelete: 'cascade' }).notNull(),
     teacherId: integer('teacherId').references(() => user.id, { onDelete: 'cascade' }).notNull(),
     createdAt: text('createdAt').default(new Date().toISOString()),
+    type: text('type').notNull(),
 });
 
 export const questions = sqliteTable('questions', {

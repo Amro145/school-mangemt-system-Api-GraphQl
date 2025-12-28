@@ -99,6 +99,7 @@ const typeDefs = /* GraphQL */ `
     studentId: Int!
     subjectId: Int!
     score: Int!
+    type: String!
     subject: Subject
     student: User
   }
@@ -158,6 +159,7 @@ const typeDefs = /* GraphQL */ `
   type Exam {
     id: Int!
     title: String!
+    type: String!
     description: String
     durationInMinutes: Int!
     subjectId: Int!
@@ -245,6 +247,7 @@ const typeDefs = /* GraphQL */ `
     deleteSchedule(id: Int!): Schedule
     createExamWithQuestions(
       title: String!, 
+      type: String!,
       description: String, 
       durationInMinutes: Int!, 
       subjectId: Int!, 
@@ -727,8 +730,23 @@ const schema = createSchema<GraphQLContext>({
           if (!classRoom) throw new GraphQLError("Classroom not found in your school.");
         }
 
+        // Duplicate Check: Same Title + Type in same Subject + Class
+        const existingExam = await db.select().from(dbSchema.exams).where(
+          and(
+            eq(dbSchema.exams.title, data.title),
+            eq(dbSchema.exams.type, data.type),
+            eq(dbSchema.exams.subjectId, data.subjectId),
+            eq(dbSchema.exams.classId, data.classId)
+          )
+        ).get();
+
+        if (existingExam) {
+          throw new GraphQLError(`An exam of type '${data.type}' with this title already exists for this subject.`);
+        }
+
         const examResult = await db.insert(dbSchema.exams).values({
           title: data.title,
+          type: data.type,
           description: data.description,
           durationInMinutes: data.durationInMinutes,
           subjectId: data.subjectId,
@@ -781,6 +799,20 @@ const schema = createSchema<GraphQLContext>({
             answers: JSON.stringify(data.answers),
             submittedAt: new Date().toISOString()
           }).where(eq(dbSchema.examSubmissions.id, existing.id)).returning();
+
+          // Auto-grade: Update existing grade or insert new if missing?? 
+          // Usually we might want to overwrite or keep history. For now, let's insert a NEW grade record for every submission
+          // effectively logging the "official" grade for this exam type.
+          // Requirement: "system must automatically insert a new record into the studentGrades table"
+
+          await db.insert(dbSchema.studentGrades).values({
+            studentId: currentUser.id,
+            subjectId: exam.subjectId,
+            classId: exam.classId,
+            score: totalScore,
+            type: exam.type
+          }).run();
+
           return result[0];
         } else {
           // Fallback if no start record (shouldn't happen with strict flow but safe to keep)
@@ -791,6 +823,15 @@ const schema = createSchema<GraphQLContext>({
             answers: JSON.stringify(data.answers),
             submittedAt: new Date().toISOString()
           }).returning();
+
+          await db.insert(dbSchema.studentGrades).values({
+            studentId: currentUser.id,
+            subjectId: exam.subjectId,
+            classId: exam.classId,
+            score: totalScore,
+            type: exam.type
+          }).run();
+
           return result[0];
         }
       },

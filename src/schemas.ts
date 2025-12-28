@@ -60,6 +60,7 @@ export const createScheduleSchema = z.object({
 
 export const createExamSchema = z.object({
   title: z.string().min(1),
+  type: z.string().min(1),
   description: z.string().optional(),
   durationInMinutes: z.number().min(1),
   subjectId: z.number(),
