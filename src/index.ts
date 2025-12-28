@@ -16,7 +16,9 @@ import {
   createSubjectSchema,
   addGradeSchema,
   createAdminSchema,
-  createScheduleSchema
+  createScheduleSchema,
+  createExamSchema,
+  submitExamSchema
 } from './schemas';
 import { createLoaders, Loaders } from './loaders';
 
@@ -153,6 +155,54 @@ const typeDefs = /* GraphQL */ `
     score: Int!
   }
 
+  type Exam {
+    id: Int!
+    title: String!
+    description: String
+    durationInMinutes: Int!
+    subjectId: Int!
+    classId: Int!
+    teacherId: Int!
+    createdAt: String!
+    subject: Subject
+    class: ClassRoom
+    teacher: User
+    questions: [Question]
+    submissions: [ExamSubmission]
+  }
+
+  type Question {
+    id: Int!
+    examId: Int!
+    questionText: String!
+    options: [String]!
+    correctAnswerIndex: Int # Nullable for students
+    points: Int!
+  }
+
+  type ExamSubmission {
+    id: Int!
+    studentId: Int!
+    examId: Int!
+    totalScore: Int!
+    answers: String!
+    submittedAt: String!
+    student: User
+    exam: Exam
+  }
+
+  input QuestionInput {
+    questionText: String!
+    options: [String]!
+    correctAnswerIndex: Int!
+    points: Int!
+  }
+
+  input StudentAnswerInput {
+    questionId: Int!
+    selectedIndex: Int!
+  }
+
 
   type Query {
     me: User
@@ -171,6 +221,9 @@ const typeDefs = /* GraphQL */ `
     studentGrades(studentId: Int!): [StudentGrade]
     getSchoolFullDetails(schoolId: Int!): School
     topStudents: [User]
+    getAvailableExams: [Exam]
+    getExamForTaking(id: Int!): Exam
+    getTeacherExamReports(examId: Int!): [ExamSubmission]
   }
 
   type Mutation {
@@ -189,6 +242,15 @@ const typeDefs = /* GraphQL */ `
     createSchedule(classId: Int!, subjectId: Int!, day: String!, startTime: String!, endTime: String!): Schedule
     updateSchedule(id: Int!, classId: Int!, subjectId: Int!, day: String!, startTime: String!, endTime: String!): Schedule
     deleteSchedule(id: Int!): Schedule
+    createExamWithQuestions(
+      title: String!, 
+      description: String, 
+      durationInMinutes: Int!, 
+      subjectId: Int!, 
+      classId: Int!, 
+      questions: [QuestionInput!]!
+    ): Exam
+    submitExamResponse(examId: Int!, answers: [StudentAnswerInput!]!): ExamSubmission
   }
 `;
 
@@ -325,6 +387,32 @@ const schema = createSchema<GraphQLContext>({
 
         return studentsWithAverages.sort((a, b) => b.avg - a.avg).slice(0, 5);
       },
+
+      getAvailableExams: async (_, __, { db, currentUser }) => {
+        if (!currentUser || currentUser.role !== 'student' || !currentUser.classId) return [];
+        return await db.select().from(dbSchema.exams).where(eq(dbSchema.exams.classId, currentUser.classId)).all();
+      },
+
+      getExamForTaking: async (_, { id }, { db, currentUser }) => {
+        if (!currentUser || currentUser.role !== 'student') throw new GraphQLError("Only students can take exams.");
+        const exam = await db.select().from(dbSchema.exams).where(
+          and(eq(dbSchema.exams.id, id), eq(dbSchema.exams.classId, currentUser.classId))
+        ).get();
+        if (!exam) throw new GraphQLError("Exam not found or not assigned to your class.");
+        return exam;
+      },
+
+      getTeacherExamReports: async (_, { examId }, { db, currentUser }) => {
+        ensureTeacherOrAdmin(currentUser);
+        const exam = await db.select().from(dbSchema.exams).where(eq(dbSchema.exams.id, examId)).get();
+        if (!exam) throw new GraphQLError("Exam not found.");
+
+        if (currentUser.role === 'teacher' && exam.teacherId !== currentUser.id) {
+          throw new GraphQLError("Unauthorized: You can only view reports for your own exams.");
+        }
+
+        return await db.select().from(dbSchema.examSubmissions).where(eq(dbSchema.examSubmissions.examId, examId)).all();
+      },
     },
 
     Mutation: {
@@ -341,7 +429,7 @@ const schema = createSchema<GraphQLContext>({
           role: 'student',
           createdAt: new Date().toISOString()
         }).returning();
-        return result[0];
+        return (result as any[])[0];
       },
 
       login: async (_, { email, password }, { db, env }) => {
@@ -429,7 +517,7 @@ const schema = createSchema<GraphQLContext>({
           name: data.name,
           schoolId: currentUser.schoolId
         }).returning();
-        return result[0];
+        return (result as any[])[0];
       },
 
       createSubject: async (_, args, { db, currentUser }) => {
@@ -475,7 +563,7 @@ const schema = createSchema<GraphQLContext>({
           ...data,
           classId: student.classId!
         }).returning();
-        return result[0];
+        return (result as any[])[0];
       },
 
       deleteUser: async (_, { id }, { db, currentUser }) => {
@@ -577,6 +665,65 @@ const schema = createSchema<GraphQLContext>({
         const result = await db.delete(dbSchema.schedule).where(eq(dbSchema.schedule.id, id)).returning();
         return result[0];
       },
+
+      createExamWithQuestions: async (_, args, { db, currentUser }) => {
+        ensureTeacherOrAdmin(currentUser);
+        const data = createExamSchema.parse(args);
+
+        const examResult = await db.insert(dbSchema.exams).values({
+          title: data.title,
+          description: data.description,
+          durationInMinutes: data.durationInMinutes,
+          subjectId: data.subjectId,
+          classId: data.classId,
+          teacherId: currentUser.id,
+          createdAt: new Date().toISOString()
+        }).returning();
+
+        const newExam = examResult[0] as any;
+
+        if (data.questions.length > 0) {
+          await db.insert(dbSchema.questions).values(
+            data.questions.map(q => ({
+              examId: newExam.id,
+              questionText: q.questionText,
+              options: JSON.stringify(q.options),
+              correctAnswerIndex: q.correctAnswerIndex,
+              points: q.points
+            }))
+          );
+        }
+
+        return newExam;
+      },
+
+      submitExamResponse: async (_, args, { db, currentUser }) => {
+        if (!currentUser || currentUser.role !== 'student') throw new GraphQLError("Only students can submit exams.");
+        const data = submitExamSchema.parse(args);
+
+        const exam = await db.select().from(dbSchema.exams).where(eq(dbSchema.exams.id, data.examId)).get();
+        if (!exam) throw new GraphQLError("Exam not found.");
+
+        const questions = await db.select().from(dbSchema.questions).where(eq(dbSchema.questions.examId, data.examId)).all();
+
+        let totalScore = 0;
+        for (const answer of data.answers) {
+          const question = questions.find(q => q.id === answer.questionId);
+          if (question && question.correctAnswerIndex === answer.selectedIndex) {
+            totalScore += question.points;
+          }
+        }
+
+        const result = await db.insert(dbSchema.examSubmissions).values({
+          studentId: currentUser.id,
+          examId: data.examId,
+          totalScore: totalScore,
+          answers: JSON.stringify(data.answers),
+          submittedAt: new Date().toISOString()
+        }).returning();
+
+        return result[0];
+      },
     },
 
     User: {
@@ -638,6 +785,28 @@ const schema = createSchema<GraphQLContext>({
       subject: async (p, _, { db }) => db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, p.subjectId)).get(),
       classRoom: async (p, _, { db }) => db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, p.classId)).get(),
     },
+
+    Exam: {
+      subject: async (p, _, { db }) => db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, p.subjectId)).get(),
+      class: async (p, _, { db }) => db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.id, p.classId)).get(),
+      teacher: async (p, _, { db }) => db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.teacherId)).get(),
+      questions: async (p, _, { db }) => db.select().from(dbSchema.questions).where(eq(dbSchema.questions.examId, p.id)).all(),
+      submissions: async (p, _, { db }) => db.select().from(dbSchema.examSubmissions).where(eq(dbSchema.examSubmissions.examId, p.id)).all(),
+    },
+
+    Question: {
+      options: (p) => JSON.parse(p.options),
+      correctAnswerIndex: (p, _, { currentUser }) => {
+        // Hide correct answer for students
+        if (currentUser?.role === 'student') return null;
+        return p.correctAnswerIndex;
+      },
+    },
+
+    ExamSubmission: {
+      student: async (p, _, { db }) => db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.studentId)).get(),
+      exam: async (p, _, { db }) => db.select().from(dbSchema.exams).where(eq(dbSchema.exams.id, p.examId)).get(),
+    },
   }
 });
 
@@ -645,7 +814,6 @@ const yoga = createYoga<GraphQLContext>({
   schema,
   graphqlEndpoint: '/graphql',
   maskedErrors: true, // In production, this masks non-GraphQLErrors with a generic message
-  validationRules: [depthLimit(5)], // Prevent deep recursive queries
   cors: {
     origin: ['https://main.school-management-frontend-66i.pages.dev'],
     methods: ['POST', 'OPTIONS'],

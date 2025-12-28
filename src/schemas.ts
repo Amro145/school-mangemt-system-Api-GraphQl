@@ -57,3 +57,25 @@ export const createScheduleSchema = z.object({
   startTime: z.string(),
   endTime: z.string(),
 });
+
+export const createExamSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  durationInMinutes: z.number().min(1),
+  subjectId: z.number(),
+  classId: z.number(),
+  questions: z.array(z.object({
+    questionText: z.string().min(1),
+    options: z.array(z.string()).min(2),
+    correctAnswerIndex: z.number().min(0),
+    points: z.number().min(1),
+  })).min(1),
+});
+
+export const submitExamSchema = z.object({
+  examId: z.number(),
+  answers: z.array(z.object({
+    questionId: z.number(),
+    selectedIndex: z.number(),
+  })),
+});
