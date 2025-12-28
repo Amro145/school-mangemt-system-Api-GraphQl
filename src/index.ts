@@ -169,6 +169,7 @@ const typeDefs = /* GraphQL */ `
     teacher: User
     questions: [Question]
     submissions: [ExamSubmission]
+    hasSubmitted: Boolean
   }
 
   type Question {
@@ -419,6 +420,24 @@ const schema = createSchema<GraphQLContext>({
 
       getExamForTaking: async (_, { id }, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'student') throw new GraphQLError("Only students can take exams.");
+
+        const existingSubmission = await db.select().from(dbSchema.examSubmissions).where(
+          and(eq(dbSchema.examSubmissions.examId, id), eq(dbSchema.examSubmissions.studentId, currentUser.id))
+        ).get();
+
+        if (existingSubmission) {
+          throw new GraphQLError("You have already submitted this exam.", { extensions: { code: "EXAM_ALREADY_SUBMITTED" } });
+        }
+
+        // Mark as started (Strict Single Attempt)
+        await db.insert(dbSchema.examSubmissions).values({
+          studentId: currentUser.id,
+          examId: id,
+          totalScore: 0,
+          answers: '[]',
+          submittedAt: new Date().toISOString()
+        }).run();
+
         const exam = await db.select().from(dbSchema.exams).where(
           and(eq(dbSchema.exams.id, id), eq(dbSchema.exams.classId, currentUser.classId))
         ).get();
@@ -752,15 +771,28 @@ const schema = createSchema<GraphQLContext>({
           }
         }
 
-        const result = await db.insert(dbSchema.examSubmissions).values({
-          studentId: currentUser.id,
-          examId: data.examId,
-          totalScore: totalScore,
-          answers: JSON.stringify(data.answers),
-          submittedAt: new Date().toISOString()
-        }).returning();
+        const existing = await db.select().from(dbSchema.examSubmissions).where(
+          and(eq(dbSchema.examSubmissions.examId, data.examId), eq(dbSchema.examSubmissions.studentId, currentUser.id))
+        ).get();
 
-        return result[0];
+        if (existing) {
+          const result = await db.update(dbSchema.examSubmissions).set({
+            totalScore: totalScore,
+            answers: JSON.stringify(data.answers),
+            submittedAt: new Date().toISOString()
+          }).where(eq(dbSchema.examSubmissions.id, existing.id)).returning();
+          return result[0];
+        } else {
+          // Fallback if no start record (shouldn't happen with strict flow but safe to keep)
+          const result = await db.insert(dbSchema.examSubmissions).values({
+            studentId: currentUser.id,
+            examId: data.examId,
+            totalScore: totalScore,
+            answers: JSON.stringify(data.answers),
+            submittedAt: new Date().toISOString()
+          }).returning();
+          return result[0];
+        }
       },
     },
 
@@ -830,6 +862,13 @@ const schema = createSchema<GraphQLContext>({
       teacher: async (p, _, { db }) => db.select().from(dbSchema.user).where(eq(dbSchema.user.id, p.teacherId)).get(),
       questions: async (p, _, { db }) => db.select().from(dbSchema.questions).where(eq(dbSchema.questions.examId, p.id)).all(),
       submissions: async (p, _, { db }) => db.select().from(dbSchema.examSubmissions).where(eq(dbSchema.examSubmissions.examId, p.id)).all(),
+      hasSubmitted: async (p, _, { db, currentUser }) => {
+        if (!currentUser || currentUser.role !== 'student') return false;
+        const sub = await db.select().from(dbSchema.examSubmissions).where(
+          and(eq(dbSchema.examSubmissions.examId, p.id), eq(dbSchema.examSubmissions.studentId, currentUser.id))
+        ).get();
+        return !!sub;
+      }
     },
 
     Question: {
