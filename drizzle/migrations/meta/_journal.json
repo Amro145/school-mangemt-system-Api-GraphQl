@@ -43,6 +43,13 @@
       "when": 1766789863029,
       "tag": "0005_bouncy_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1766884338012,
+      "tag": "0006_greedy_hannibal_king",
+      "breakpoints": true
     }
   ]
 }
