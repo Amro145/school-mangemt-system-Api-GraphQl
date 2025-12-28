@@ -395,8 +395,26 @@ const schema = createSchema<GraphQLContext>({
       },
 
       getAvailableExams: async (_, __, { db, currentUser }) => {
-        if (!currentUser || currentUser.role !== 'student' || !currentUser.classId) return [];
-        return await db.select().from(dbSchema.exams).where(eq(dbSchema.exams.classId, currentUser.classId)).all();
+        if (!currentUser) return [];
+
+        if (currentUser.role === 'student') {
+          if (!currentUser.classId) return [];
+          return await db.select().from(dbSchema.exams).where(eq(dbSchema.exams.classId, currentUser.classId)).all();
+        }
+
+        if (currentUser.role === 'teacher') {
+          return await db.select().from(dbSchema.exams).where(eq(dbSchema.exams.teacherId, currentUser.id)).all();
+        }
+
+        if (currentUser.role === 'admin') {
+          return await db.select({ exam: dbSchema.exams })
+            .from(dbSchema.exams)
+            .innerJoin(dbSchema.classRoom, eq(dbSchema.exams.classId, dbSchema.classRoom.id))
+            .where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId))
+            .all().then(rows => rows.map(r => r.exam));
+        }
+
+        return [];
       },
 
       getExamForTaking: async (_, { id }, { db, currentUser }) => {
