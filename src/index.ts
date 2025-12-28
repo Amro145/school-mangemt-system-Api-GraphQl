@@ -314,7 +314,7 @@ const schema = createSchema<GraphQLContext>({
       },
 
       classRooms: async (_, __, { db, currentUser }) => {
-        ensureAdmin(currentUser);
+        ensureTeacherOrAdmin(currentUser);
         return await db.select().from(dbSchema.classRoom).where(eq(dbSchema.classRoom.schoolId, currentUser.schoolId)).all();
       },
 
@@ -324,7 +324,13 @@ const schema = createSchema<GraphQLContext>({
       },
 
       subjects: async (_, __, { db, currentUser }) => {
-        ensureAdmin(currentUser);
+        ensureTeacherOrAdmin(currentUser);
+
+        if (currentUser.role === 'teacher') {
+          return await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.teacherId, currentUser.id)).all();
+        }
+
+        // Admin case: return all subjects in school
         return await db.select({ subject: dbSchema.subject })
           .from(dbSchema.subject)
           .innerJoin(dbSchema.classRoom, eq(dbSchema.subject.classId, dbSchema.classRoom.id))
@@ -670,13 +676,27 @@ const schema = createSchema<GraphQLContext>({
         ensureTeacherOrAdmin(currentUser);
         const data = createExamSchema.parse(args);
 
+        // Validation: Verify if subject exists and belongs to the correct school/teacher
+        const subject = await db.select().from(dbSchema.subject).where(eq(dbSchema.subject.id, data.subjectId)).get();
+        if (!subject) throw new GraphQLError("Subject not found.");
+
+        if (currentUser.role === 'teacher' && subject.teacherId !== currentUser.id) {
+          throw new GraphQLError("Unauthorized: You can only create exams for subjects you teach.");
+        }
+
+        // Verify classId ownership for Admin
+        if (currentUser.role === 'admin') {
+          const classRoom = await db.select().from(dbSchema.classRoom).where(and(eq(dbSchema.classRoom.id, data.classId), eq(dbSchema.classRoom.schoolId, currentUser.schoolId))).get();
+          if (!classRoom) throw new GraphQLError("Classroom not found in your school.");
+        }
+
         const examResult = await db.insert(dbSchema.exams).values({
           title: data.title,
           description: data.description,
           durationInMinutes: data.durationInMinutes,
           subjectId: data.subjectId,
           classId: data.classId,
-          teacherId: currentUser.id,
+          teacherId: currentUser.role === 'teacher' ? currentUser.id : subject.teacherId,
           createdAt: new Date().toISOString()
         }).returning();
 
