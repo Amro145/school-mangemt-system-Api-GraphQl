@@ -455,23 +455,6 @@ const schema = createSchema<GraphQLContext>({
       getExamForTaking: async (_, { id }, { db, currentUser }) => {
         if (!currentUser || currentUser.role !== 'student') throw new GraphQLError("Only students can take exams.");
 
-        const existingSubmission = await db.select().from(dbSchema.examSubmissions).where(
-          and(eq(dbSchema.examSubmissions.examId, id), eq(dbSchema.examSubmissions.studentId, currentUser.id))
-        ).get();
-
-        if (existingSubmission) {
-          throw new GraphQLError("You have already submitted this exam.", { extensions: { code: "EXAM_ALREADY_SUBMITTED" } });
-        }
-
-        // Mark as started (Strict Single Attempt)
-        await db.insert(dbSchema.examSubmissions).values({
-          studentId: currentUser.id,
-          examId: id,
-          totalScore: 0,
-          answers: '[]',
-          submittedAt: new Date().toISOString()
-        }).run();
-
         const exam = await db.select().from(dbSchema.exams).where(
           and(eq(dbSchema.exams.id, id), eq(dbSchema.exams.classId, currentUser.classId))
         ).get();
@@ -820,51 +803,24 @@ const schema = createSchema<GraphQLContext>({
           }
         }
 
-        const existing = await db.select().from(dbSchema.examSubmissions).where(
-          and(eq(dbSchema.examSubmissions.examId, data.examId), eq(dbSchema.examSubmissions.studentId, currentUser.id))
-        ).get();
+        // Always insert a new record to allow multiple attempts
+        const result = await db.insert(dbSchema.examSubmissions).values({
+          studentId: currentUser.id,
+          examId: data.examId,
+          totalScore: totalScore,
+          answers: JSON.stringify(data.answers),
+          submittedAt: new Date().toISOString()
+        }).returning();
 
-        if (existing) {
-          const result = await db.update(dbSchema.examSubmissions).set({
-            totalScore: totalScore,
-            answers: JSON.stringify(data.answers),
-            submittedAt: new Date().toISOString()
-          }).where(eq(dbSchema.examSubmissions.id, existing.id)).returning();
+        await db.insert(dbSchema.studentGrades).values({
+          studentId: currentUser.id,
+          subjectId: exam.subjectId,
+          classId: exam.classId,
+          score: totalScore,
+          type: exam.type
+        }).run();
 
-          // Auto-grade: Update existing grade or insert new if missing?? 
-          // Usually we might want to overwrite or keep history. For now, let's insert a NEW grade record for every submission
-          // effectively logging the "official" grade for this exam type.
-          // Requirement: "system must automatically insert a new record into the studentGrades table"
-
-          await db.insert(dbSchema.studentGrades).values({
-            studentId: currentUser.id,
-            subjectId: exam.subjectId,
-            classId: exam.classId,
-            score: totalScore,
-            type: exam.type
-          }).run();
-
-          return result[0];
-        } else {
-          // Fallback if no start record (shouldn't happen with strict flow but safe to keep)
-          const result = await db.insert(dbSchema.examSubmissions).values({
-            studentId: currentUser.id,
-            examId: data.examId,
-            totalScore: totalScore,
-            answers: JSON.stringify(data.answers),
-            submittedAt: new Date().toISOString()
-          }).returning();
-
-          await db.insert(dbSchema.studentGrades).values({
-            studentId: currentUser.id,
-            subjectId: exam.subjectId,
-            classId: exam.classId,
-            score: totalScore,
-            type: exam.type
-          }).run();
-
-          return result[0];
-        }
+        return result[0];
       },
     },
 
