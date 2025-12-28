@@ -9,9 +9,9 @@
     "db:migrate": "npx tsx src/db/migrate.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "npx tsx seed.ts",
-    "seed:ts": "npx tsx seed.ts",
-    "seed:remote": "npx tsx seed.ts --remote && npx wrangler d1 execute myAppD1 --remote --file=./seed-remote.sql",
+    "db:seed": "npx tsx src/db/seed.ts",
+    "seed:ts": "npx tsx src/db/seed.ts",
+    "seed:remote": "npx tsx src/db/seed.ts --remote && npx wrangler d1 execute myAppD1 --remote --file=./seed-remote.sql",
     "db:seed:remote": "npx wrangler d1 execute myAppD1 --remote --file=./seed.sql"
   },
   "dependencies": {
