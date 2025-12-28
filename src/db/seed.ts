@@ -1,148 +1,228 @@
+
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
-// تأكد من إضافة exams و questions هنا بعد تعريفهم في السكيما
 import { user, school, classRoom, subject, schedule, studentGrades, exams, questions } from './schema';
-import { eq } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const DB_PATH = 'sqlite.db';
 const REMOTE_SQL_FILE = 'seed-remote.sql';
-const IS_REMOTE = process.argv.includes('--remote');
+// Always remote for this task as we want to generate SQL
+const IS_REMOTE = true;
 
-const SCHOOLS_COUNT = 1; // قللت العدد للتجربة السريعة
-const CLASSROOMS_PER_SCHOOL = 3;
-const SUBJECT_NAMES = ['Math', 'Science', 'English', 'History', 'ICT'];
-const STUDENTS_PER_CLASS = 5;
+const SCHOOLS_COUNT = 1;
+const CLASSES_COUNT = 10;
+const STUDENTS_PER_CLASS = 20;
+const TEACHERS_COUNT = 10;
+const SUBJECTS_PER_CLASS = 6;
+const SUBJECT_NAMES_POOL = [
+    'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History',
+    'Geography', 'Computer Science', 'Art', 'Music', 'Physical Education', 'Literature'
+];
 
 const sqlStatements: string[] = [];
-const ids = { school: 1, user: 1, classRoom: 1, subject: 1, schedule: 1, studentGrades: 1, exams: 1, questions: 1 };
+// Start IDs from 1
+const ids = {
+    school: 1,
+    user: 1,
+    classRoom: 1,
+    subject: 1,
+    schedule: 1,
+    studentGrades: 1,
+    exams: 1,
+    questions: 1
+};
 
 function escape(val: any): string {
     if (val === null || val === undefined) return 'NULL';
     if (typeof val === 'number') return val.toString();
     if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
-    return `'${JSON.stringify(val)}'`; // للتعامل مع الخيارات في الأسئلة
+    return `'${JSON.stringify(val)}'`;
 }
 
-function executeInsert(db: any, table: any, data: any, tableName: string) {
-    if (IS_REMOTE) {
-        const id = ids[tableName as keyof typeof ids]++;
-        const dataWithId = { ...data, id };
-        const keys = Object.keys(dataWithId);
-        const values = Object.values(dataWithId).map(escape);
-        const statement = `INSERT INTO ${tableName} (${keys.join(', ')}) VALUES (${values.join(', ')});`;
-        sqlStatements.push(statement);
-        return { id };
-    } else {
-        return db.insert(table).values(data).returning({ id: table.id }).get();
-    }
+function executeInsert(table: any, data: any, tableName: string) {
+    const id = ids[tableName as keyof typeof ids]++;
+    const dataWithId = { ...data, id };
+
+    // SQLite boolean handling or other specific conversions if needed
+    // But mostly string/number is fine. 
+    // Timestamps are strings in current schema.
+
+    const keys = Object.keys(dataWithId);
+    const values = Object.values(dataWithId).map(escape);
+    const statement = `INSERT INTO ${tableName} (${keys.join(', ')}) VALUES (${values.join(', ')});`;
+    sqlStatements.push(statement);
+    return { id, ...dataWithId };
 }
 
 async function seed() {
-    console.log(`🌱 Seeding EduDash...`);
-    const sqlite = new Database(DB_PATH);
-    const db = drizzle(sqlite);
-    const hashedPassword = await bcrypt.hash('123456', 10);
+    console.log(`🌱 Generating Complex Seed Data for EduDash...`);
 
-    if (IS_REMOTE) {
-        // Cleanup existing data
-        sqlStatements.push('PRAGMA foreign_keys = OFF;');
-        sqlStatements.push('DELETE FROM examSubmissions;');
-        sqlStatements.push('DELETE FROM questions;');
-        sqlStatements.push('DELETE FROM exams;');
-        sqlStatements.push('DELETE FROM studentGrades;');
-        sqlStatements.push('DELETE FROM schedule;');
-        sqlStatements.push('DELETE FROM subject;');
-        sqlStatements.push('DELETE FROM user;');
-        sqlStatements.push('DELETE FROM classRoom;');
-        sqlStatements.push('DELETE FROM school;');
-        sqlStatements.push('DELETE FROM sqlite_sequence;'); // Reset auto-increment
-        sqlStatements.push('PRAGMA foreign_keys = ON;');
-    }
+    const password = 'amroamro';
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const createdAt = new Date().toISOString();
 
-    // 1. إنشاء المدرسة
-    const schoolRes = executeInsert(db, school, { name: "EduDash Academy" }, 'school');
+    // Cleanup existing data
+    sqlStatements.push('PRAGMA foreign_keys = OFF;');
+    sqlStatements.push('DELETE FROM examSubmissions;');
+    sqlStatements.push('DELETE FROM questions;');
+    sqlStatements.push('DELETE FROM exams;');
+    sqlStatements.push('DELETE FROM studentGrades;');
+    sqlStatements.push('DELETE FROM schedule;');
+    sqlStatements.push('DELETE FROM subject;');
+    sqlStatements.push('DELETE FROM user;');
+    sqlStatements.push('DELETE FROM classRoom;');
+    sqlStatements.push('DELETE FROM school;');
+    sqlStatements.push('DELETE FROM sqlite_sequence;');
+    sqlStatements.push('PRAGMA foreign_keys = ON;');
 
-    // 2. إنشاء الآدمن بإيميل بسيط
-    const adminRes = executeInsert(db, user, {
-        userName: 'Admin',
-        email: 'admin@test.com',
+    // 1. Create School
+    const schoolRes = executeInsert(school, { name: "EduDash International School" }, 'school');
+
+    // 2. Create Admin
+    executeInsert(user, {
+        userName: 'School Manager',
+        email: 'admin@edudash.com',
         password: hashedPassword,
         role: 'admin',
-        schoolId: schoolRes.id
+        schoolId: schoolRes.id,
+        createdAt
     }, 'user');
 
-    // 3. إنشاء المعلمين (معلم واحد لكل 5 مواد)
+    // 3. Create Teachers
     const teachers: any[] = [];
-    for (let t = 1; t <= 2; t++) {
-        const teacherRes = executeInsert(db, user, {
+    for (let t = 1; t <= TEACHERS_COUNT; t++) {
+        const teacher = executeInsert(user, {
             userName: `Teacher ${t}`,
-            email: `t${t}@test.com`,
+            email: `teacher${t}@edudash.com`,
             password: hashedPassword,
             role: 'teacher',
-            schoolId: schoolRes.id
+            schoolId: schoolRes.id,
+            createdAt
         }, 'user');
-        teachers.push(teacherRes);
+        teachers.push(teacher);
     }
 
-    // 4. إنشاء الفصول والمواد والامتحانات
-    for (let i = 1; i <= CLASSROOMS_PER_SCHOOL; i++) {
-        const classRes = executeInsert(db, classRoom, {
-            name: `Grade ${i}`,
+    // 4. Create Classes, Subjects, assigned Teachers
+    const classes: any[] = [];
+    for (let c = 1; c <= CLASSES_COUNT; c++) {
+        const classObj = executeInsert(classRoom, {
+            name: `Grade ${c}`,
             schoolId: schoolRes.id
         }, 'classRoom');
+        classes.push(classObj);
 
-        for (let s = 0; s < SUBJECT_NAMES.length; s++) {
-            // توزيع المعلمين: المعلم الأول يأخذ أول 5 مواد وهكذا
-            const assignedTeacher = teachers[s % teachers.length];
+        // Assign Subjects & Teachers
+        // Logic: 6 subjects per class.
+        // Teachers rotated: (classIndex + subjectIndex) % 10
+        const classSubjects: any[] = [];
 
-            const subjectRes = executeInsert(db, subject, {
-                name: SUBJECT_NAMES[s],
-                classId: classRes.id,
+        for (let s = 0; s < SUBJECTS_PER_CLASS; s++) {
+            // Pick subject name from pool or generic. 
+            // Let's use generic names + generic to ensure unique names per class if needed, 
+            // but standard names are better.
+            const subjectName = SUBJECT_NAMES_POOL[s % SUBJECT_NAMES_POOL.length]; // cycling names 
+
+            // Teacher Assignment Logic
+            const teacherIndex = ((c - 1) + s) % TEACHERS_COUNT;
+            const assignedTeacher = teachers[teacherIndex];
+
+            const subjectObj = executeInsert(subject, {
+                name: subjectName,
+                classId: classObj.id,
                 teacherId: assignedTeacher.id
             }, 'subject');
+            classSubjects.push(subjectObj);
 
-            // 5. إضافة اختبار تجريبي لكل مادة
-            const examRes = executeInsert(db, exams, {
-                title: `Final ${SUBJECT_NAMES[s]} Quiz`,
-                description: "Simple test to verify the system",
-                subjectId: subjectRes.id,
-                classId: classRes.id,
+            // Create Exam for this subject
+            const examObj = executeInsert(exams, {
+                title: `${subjectName} Midterm`,
+                description: `Midterm examination for ${subjectName}`,
+                durationInMinutes: 60,
+                subjectId: subjectObj.id,
+                classId: classObj.id,
                 teacherId: assignedTeacher.id,
-                durationInMinutes: 30
+                createdAt,
+                type: 'Midterm'
             }, 'exams');
 
-            // 6. إضافة أسئلة بسيطة للاختبار
-            executeInsert(db, questions, {
-                examId: examRes.id,
-                questionText: `What is 1 + ${s}?`,
-                options: JSON.stringify([`${1 + s}`, `${2 + s}`, `${3 + s}`, `${4 + s}`]),
-                correctAnswerIndex: 0, // الخيار الأول
-                points: 10
-            }, 'questions');
+            // Add Questions
+            for (let q = 1; q <= 5; q++) {
+                executeInsert(questions, {
+                    examId: examObj.id,
+                    questionText: `Sample Question ${q} for ${subjectName}?`,
+                    options: JSON.stringify(["Option A", "Option B", "Option C", "Option D"]),
+                    correctAnswerIndex: 0,
+                    points: 20
+                }, 'questions');
+            }
         }
 
-        // 7. إضافة طلاب بإيميلات بسيطة
+        classObj.subjects = classSubjects;
+    }
+
+    // 5. Create Students & Grades
+    for (const cls of classes) {
         for (let st = 1; st <= STUDENTS_PER_CLASS; st++) {
-            executeInsert(db, user, {
-                userName: `Student ${i}-${st}`,
-                email: `s${i}${st}@test.com`,
+            const student = executeInsert(user, {
+                userName: `Student ${cls.name}-${st}`,
+                email: `student_${cls.id}_${st}@edudash.com`,
                 password: hashedPassword,
                 role: 'student',
                 schoolId: schoolRes.id,
-                classId: classRes.id
+                classId: cls.id,
+                createdAt
             }, 'user');
+
+            // Assign Scores for all subjects in class
+            for (const sub of cls.subjects) {
+                executeInsert(studentGrades, {
+                    studentId: student.id,
+                    subjectId: sub.id,
+                    classId: cls.id,
+                    score: Math.floor(Math.random() * 51) + 50, // 50-100
+                    type: 'Midterm'
+                }, 'studentGrades');
+            }
         }
     }
 
-    if (IS_REMOTE) {
-        fs.writeFileSync(path.resolve(process.cwd(), REMOTE_SQL_FILE), sqlStatements.join('\n'));
-        console.log(`✅ Remote SQL file generated!`);
-    } else {
-        console.log('✅ Local seeding done!');
+    // 6. Create Timetable (Weekly Schedule)
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+    const periods = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
+
+    for (const cls of classes) {
+        let subjectIndex = 0;
+        for (const day of days) {
+            for (let p = 0; p < periods.length; p++) {
+                const startTime = periods[p];
+                const endTime = periods[p].replace(':00', ':45'); // 45 min class
+
+                const sub = cls.subjects[subjectIndex % cls.subjects.length];
+                subjectIndex++;
+
+                executeInsert(schedule, {
+                    classId: cls.id,
+                    subjectId: sub.id,
+                    day: day,
+                    startTime: startTime,
+                    endTime: endTime
+                }, 'schedule');
+            }
+        }
     }
+
+    // Write to file
+    fs.writeFileSync(path.resolve(process.cwd(), REMOTE_SQL_FILE), sqlStatements.join('\n'));
+    console.log(`✅ SQL Seed file generated at ${REMOTE_SQL_FILE}`);
+    console.log(`Stats:`);
+    console.log(`- School: 1`);
+    console.log(`- Admin: 1`);
+    console.log(`- Teachers: ${TEACHERS_COUNT}`);
+    console.log(`- Classes: ${CLASSES_COUNT}`);
+    console.log(`- Students: ${CLASSES_COUNT * STUDENTS_PER_CLASS}`);
+    console.log(`- Subjects: ${CLASSES_COUNT * SUBJECTS_PER_CLASS}`);
 }
 
 seed().catch(console.error);
