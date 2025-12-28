@@ -944,7 +944,14 @@ const schema = createSchema<GraphQLContext>({
     },
 
     Question: {
-      options: (p) => JSON.parse(p.options),
+      options: (p) => {
+        try {
+          return JSON.parse(p.options);
+        } catch (e) {
+          console.error("Failed to parse options for question", p.id);
+          return [];
+        }
+      },
       correctAnswerIndex: (p, _, { currentUser }) => {
         // Hide correct answer for students
         if (currentUser?.role === 'student') return null;
