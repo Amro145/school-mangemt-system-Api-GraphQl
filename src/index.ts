@@ -820,6 +820,7 @@ const schema = createSchema<GraphQLContext>({
           type: exam.type
         }).run();
 
+        
         return result[0];
       },
     },
